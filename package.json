@@ -1,0 +1,93 @@
+{
+  "name": "opencode-vscode",
+  "displayName": "OpenCode",
+  "description": "Sidebar-first AI coding assistant powered by OpenCode",
+  "version": "0.1.0",
+  "publisher": "opencode",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages",
+    "Machine Learning"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "opencode-sidebar",
+          "title": "OpenCode",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "opencode-sidebar": [
+        {
+          "type": "webview",
+          "id": "opencode.sidebar",
+          "name": "Chat"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "opencode.focus",
+        "title": "OpenCode: Focus on Chat View"
+      },
+      {
+        "command": "opencode.openCliPathSettings",
+        "title": "OpenCode: Configure CLI Path"
+      }
+    ],
+    "configuration": {
+      "title": "OpenCode",
+      "properties": {
+        "opencode.server.url": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "URL of the OpenCode server"
+        },
+        "opencode.cli.path": {
+          "type": "string",
+          "default": "opencode",
+          "description": "Path to the opencode CLI"
+        },
+        "opencode.server.requireAuth": {
+          "type": "boolean",
+          "default": true,
+          "description": "Require HTTP basic auth for the managed local OpenCode server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "npm run build:extension && npm run build:webview",
+    "build:extension": "node esbuild.extension.mjs",
+    "build:webview": "vite build --config vite.webview.config.ts",
+    "watch": "concurrently \"npm run watch:extension\" \"npm run watch:webview\"",
+    "watch:extension": "node esbuild.extension.mjs --watch",
+    "watch:webview": "vite build --watch --config vite.webview.config.ts",
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts,tsx",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "20.x",
+    "@types/vscode": "^1.85.0",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4",
+    "vite-plugin-solid": "^2.10.2"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "^1.4.0",
+    "lucide-solid": "^0.344.0",
+    "solid-js": "^1.8.15"
+  }
+}

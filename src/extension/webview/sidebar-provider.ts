@@ -1,0 +1,460 @@
+import * as fs from 'fs';
+import * as path from 'path';
+import * as vscode from 'vscode';
+import type { HostMessage, WebviewMessage } from '../../shared/protocol';
+import type { ContextChip, DraftOptions, DraftSelection, SessionState } from '../../shared/models';
+import type { Message, Part, PermissionRequest, QuestionRequest, Session, SessionStatus, SnapshotFileDiff } from '@opencode-ai/sdk/v2/client';
+import { Client } from '../opencode/client';
+import { EventStream } from '../opencode/event-stream';
+import { ProcessManager } from '../opencode/process-manager';
+import { SessionStore } from '../opencode/session-store';
+import { WorkspaceContext } from '../vscode/workspace-context';
+import { getWebviewHtml } from './html';
+import { DraftStore } from './draft-store';
+
+export class SidebarProvider implements vscode.WebviewViewProvider {
+  private view?: vscode.WebviewView;
+  private readonly workspace = new WorkspaceContext();
+  private readonly draft = new DraftStore();
+  private contextChips: ContextChip[] = [];
+  private error?: string;
+  private ready = false;
+  private suspendStorePosts = 0;
+  private snapshotTimer?: NodeJS.Timeout;
+  private hydratedSessions = new Set<string>();
+  private hostAcked = false;
+  private htmlRefreshTimer?: NodeJS.Timeout;
+
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly proc: ProcessManager,
+    private readonly client: Client,
+    private readonly events: EventStream,
+    private readonly store: SessionStore,
+    private readonly context: vscode.ExtensionContext,
+  ) {
+    this.proc.on('statusChange', () => {
+      this.postConnection();
+    });
+
+    this.events.on('error', (err) => {
+      this.error = err instanceof Error ? err.message : String(err);
+      this.post({ type: 'error', payload: { message: this.error } });
+    });
+
+    this.store.on('change', () => {
+      void this.context.workspaceState.update('activeSessionId', this.store.activeSessionId);
+      if (this.suspendStorePosts > 0) return;
+      this.scheduleSnapshotPost();
+    });
+  }
+
+  resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext<unknown>,
+  ) {
+    this.view = webviewView;
+    this.ready = false;
+    this.hostAcked = false;
+    this.proc.log('Sidebar resolveWebviewView');
+
+    webviewView.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist')],
+    };
+
+    webviewView.webview.html = getWebviewHtml(webviewView.webview, this.extensionUri, this.viewState());
+
+    webviewView.webview.onDidReceiveMessage(async (msg: WebviewMessage) => {
+      this.proc.log(`Sidebar received message: ${msg.type}`);
+      try {
+        await this.handle(msg);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        this.proc.log(`Sidebar handle error: ${message}`);
+        this.post({ type: 'error', payload: { message } });
+      }
+    });
+
+    webviewView.onDidDispose(() => {
+      if (this.view === webviewView) {
+        this.proc.log('Sidebar disposed');
+        this.view = undefined;
+        this.ready = false;
+      }
+    });
+
+    webviewView.onDidChangeVisibility(() => {
+      this.proc.log(`Sidebar visibility changed visible=${webviewView.visible}`);
+      if (webviewView.visible && this.ready) {
+        this.post({
+          type: 'bootstrap',
+          payload: {
+            connectionStatus: this.connectionStatus(),
+            ...this.store.snapshot,
+            draft: this.draft.snapshot,
+          },
+        });
+      }
+    });
+
+    this.proc.log(`Sidebar resolve restoredState=${context.state ? 'yes' : 'no'}`);
+  }
+
+  private async handle(msg: WebviewMessage) {
+    switch (msg.type) {
+      case 'ready':
+        this.ready = true;
+        this.proc.log('Sidebar ready acknowledged');
+        this.postConnection();
+        await this.bootstrap();
+        return;
+      case 'debug.log':
+        this.proc.log(`Webview ${msg.payload.message}`);
+        return;
+      case 'host.ack':
+        this.hostAcked = true;
+        this.proc.log(`Sidebar host ack ${msg.payload.messageType}`);
+        return;
+      case 'session.new':
+        await this.createSession();
+        return;
+      case 'session.switch':
+        this.store.activeSessionId = msg.payload.sessionID;
+        this.syncDraftFromSession();
+        this.postDraft();
+        this.flushSnapshotPost();
+        void this.ensureSessionLoaded(msg.payload.sessionID);
+        return;
+      case 'draft.set':
+        this.draft.setSelection(msg.payload);
+        this.postDraft();
+        return;
+      case 'prompt.send':
+        await this.sendPrompt(msg.payload.text, msg.payload.attachments, msg.payload.draft);
+        return;
+      case 'session.abort':
+        await this.abort(msg.payload.sessionID);
+        return;
+      case 'turn.retry':
+        await this.retry(msg.payload.sessionID, msg.payload.messageID);
+        return;
+      case 'permission.approve':
+        await this.client.replyPermission(msg.payload.requestID, msg.payload.remember);
+        return;
+      case 'permission.deny':
+        await this.client.rejectPermission(msg.payload.requestID);
+        return;
+      case 'question.answer':
+        await this.client.replyQuestion(msg.payload.requestID, msg.payload.answers);
+        return;
+      case 'context.attachActiveFile': {
+        const item = this.workspace.getActiveFileContext();
+        if (item) {
+          this.contextChips = [...this.contextChips, item];
+          this.post({ type: 'context.preview', payload: item });
+        }
+        return;
+      }
+      case 'context.attachSelection': {
+        const item = this.workspace.getSelectionContext();
+        if (item) {
+          this.contextChips = [...this.contextChips, item];
+          this.post({ type: 'context.preview', payload: item });
+        }
+        return;
+      }
+      case 'file.open':
+        await this.openFile(msg.payload.sessionID, msg.payload.path);
+        return;
+      case 'diff.open':
+        await this.openDiff(msg.payload.sessionID, msg.payload.path);
+        return;
+    }
+  }
+
+  private async bootstrap() {
+    this.proc.log('Sidebar bootstrap start');
+    const directory = this.root();
+
+    if (!directory) {
+      this.withSuspendedStorePosts(() => {
+        this.store.bootstrap();
+        this.hydratedSessions.clear();
+      });
+      this.error = 'Open a workspace folder to use OpenCode.';
+      this.post({
+        type: 'bootstrap',
+        payload: {
+          connectionStatus: this.connectionStatus(),
+          ...this.store.snapshot,
+          draft: this.draft.snapshot,
+        },
+      });
+      this.post({ type: 'error', payload: { message: this.error } });
+      return;
+    }
+
+    await this.loadDraft(directory);
+    this.proc.log(`Sidebar loadSessions directory=${directory}`);
+    const sessions = await this.client.getSessions(directory);
+    this.withSuspendedStorePosts(() => {
+      this.store.bootstrap();
+      this.hydratedSessions.clear();
+      for (const session of sessions) {
+        this.store.upsertSession(session);
+      }
+
+      const saved = this.context.workspaceState.get<string>('activeSessionId');
+      if (saved && this.store.getSession(saved)) this.store.activeSessionId = saved;
+      if (!this.store.activeSessionId && sessions[0]) this.store.activeSessionId = sessions[0].id;
+    });
+
+    this.error = undefined;
+    this.post({
+      type: 'bootstrap',
+      payload: {
+        connectionStatus: this.connectionStatus(),
+        ...this.store.snapshot,
+        draft: this.draft.snapshot,
+      },
+    });
+
+    if (this.store.activeSessionId) {
+      await this.ensureSessionLoaded(this.store.activeSessionId);
+    }
+  }
+
+  private async createSession() {
+    const directory = this.root();
+    if (!directory) {
+      this.error = 'Open a workspace folder to create a session.';
+      this.post({ type: 'error', payload: { message: this.error } });
+      return;
+    }
+
+    this.proc.log(`Sidebar createSession directory=${directory}`);
+    const info = await this.client.createSession(directory);
+    if (!info) return;
+
+    this.withSuspendedStorePosts(() => {
+      this.store.upsertSession(info);
+      this.store.activeSessionId = info.id;
+    });
+    this.syncDraftFromSession();
+    this.postDraft();
+    this.flushSnapshotPost();
+    await this.ensureSessionLoaded(info.id);
+  }
+
+  private async sendPrompt(text: string, attachments: ContextChip[], draft?: DraftSelection) {
+    if (!text.trim()) return;
+    this.proc.log(`Sidebar sendPrompt chars=${text.length} attachments=${attachments.length}`);
+
+    let sessionID = this.store.activeSessionId;
+    if (!sessionID) {
+      await this.createSession();
+      sessionID = this.store.activeSessionId;
+    }
+    if (!sessionID) return;
+
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    this.draft.setSelection(draft ?? this.draft.snapshot.selection);
+    this.store.addOptimisticUserMessage(sessionID, text, this.draft.snapshot.selection);
+    await this.client.sendPrompt(sessionID, session.info.directory, text, attachments, this.draft.snapshot.selection);
+    this.contextChips = [];
+    this.error = undefined;
+    this.postDraft();
+  }
+
+  private async abort(sessionID: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+    await this.client.abortRun(sessionID, session.info.directory);
+  }
+
+  private async retry(sessionID: string, messageID: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+    await this.client.retryTurn(sessionID, session.info.directory, messageID);
+  }
+
+  private async loadSession(sessionID: string, directory: string): Promise<LoadedSession> {
+    this.proc.log(`Sidebar loadSession session=${sessionID} directory=${directory}`);
+    const [info, messages, diffs, permissions, questions] = await Promise.all([
+      this.client.getSession(sessionID, directory),
+      this.client.getMessages(sessionID, directory),
+      this.client.getDiff(sessionID, directory),
+      this.client.getPendingPermissions(directory),
+      this.client.getPendingQuestions(directory),
+    ]);
+
+    if (!info) throw new Error(`Session ${sessionID} not found`);
+
+    return {
+      info,
+      status: { type: 'idle' } as const,
+      messages: (messages ?? []).map((item) => ({ info: item.info, parts: item.parts })),
+      pendingPermissions: (permissions ?? []).filter((item) => item.sessionID === sessionID),
+      pendingQuestions: (questions ?? []).filter((item) => item.sessionID === sessionID),
+      diffs: diffs ?? [],
+    };
+  }
+
+  private async loadDraft(directory: string) {
+    const [providers, agents] = await Promise.all([this.client.getProviders(directory), this.client.getAgents(directory)]);
+    this.draft.setCatalog({
+      providers: providers.providers,
+      defaults: providers.defaults,
+      agents,
+    });
+    this.syncDraftFromSession();
+  }
+
+  private syncDraftFromSession() {
+    const sessionID = this.store.activeSessionId;
+    const session = sessionID ? this.store.getSession(sessionID) : undefined;
+    this.draft.restore(session);
+  }
+
+  private async ensureSessionLoaded(sessionID: string) {
+    if (this.hydratedSessions.has(sessionID)) return;
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    const full = await this.loadSession(sessionID, session.info.directory);
+    this.withSuspendedStorePosts(() => {
+      this.store.upsertSession(full.info, {
+        status: full.status,
+        pendingPermissions: full.pendingPermissions,
+        pendingQuestions: full.pendingQuestions,
+        diffs: full.diffs,
+      });
+      this.store.setMessages(full.info.id, full.messages);
+      this.hydratedSessions.add(sessionID);
+    });
+
+    if (this.store.activeSessionId === sessionID) {
+      this.syncDraftFromSession();
+      this.postDraft();
+    }
+    this.flushSnapshotPost();
+  }
+
+  private connectionStatus() {
+    if (this.proc.status === 'running') return 'connected' as const;
+    if (this.proc.status === 'starting') return 'connecting' as const;
+    if (this.proc.status === 'error') return 'error' as const;
+    return 'disconnected' as const;
+  }
+
+  private postConnection() {
+    this.error = this.proc.error ?? undefined;
+    this.post({
+      type: 'connection.state',
+      payload: {
+        status: this.connectionStatus(),
+        error: this.proc.error,
+      },
+    });
+  }
+
+  private postDraft() {
+    this.post({ type: 'draft.state', payload: this.draft.snapshot });
+  }
+
+  private scheduleSnapshotPost() {
+    if (this.snapshotTimer) return;
+    this.snapshotTimer = setTimeout(() => {
+      this.snapshotTimer = undefined;
+      this.post({ type: 'session.snapshot', payload: this.store.snapshot });
+    }, 50);
+  }
+
+  private flushSnapshotPost() {
+    if (this.snapshotTimer) {
+      clearTimeout(this.snapshotTimer);
+      this.snapshotTimer = undefined;
+    }
+    this.post({ type: 'session.snapshot', payload: this.store.snapshot });
+  }
+
+  private withSuspendedStorePosts<T>(fn: () => T) {
+    this.suspendStorePosts += 1;
+    try {
+      return fn();
+    } finally {
+      this.suspendStorePosts -= 1;
+    }
+  }
+
+  private viewState() {
+    return {
+      connectionStatus: this.connectionStatus(),
+      ...this.store.snapshot,
+      draft: this.draft.snapshot,
+      contextChips: this.contextChips,
+      error: this.error,
+    };
+  }
+
+  private root() {
+    const folders = vscode.workspace.workspaceFolders;
+    if (folders?.length) return folders[0]?.uri.fsPath;
+
+    const editor = vscode.window.activeTextEditor;
+    if (editor) {
+      const folder = vscode.workspace.getWorkspaceFolder(editor.document.uri)?.uri.fsPath;
+      if (folder) return folder;
+    }
+
+    const envRoot = process.env.OPENCODE_WORKSPACE_ROOT;
+    if (envRoot && fs.existsSync(envRoot)) return envRoot;
+
+    return undefined;
+  }
+
+  private async openFile(sessionID: string, rel: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+    const uri = vscode.Uri.file(path.join(session.info.directory, rel));
+    await vscode.window.showTextDocument(uri, { preview: false });
+  }
+
+  private async openDiff(sessionID: string, rel: string) {
+    await this.openFile(sessionID, rel);
+  }
+
+  private post(message: HostMessage) {
+    if (!this.view || !this.ready && message.type !== 'bootstrap' && message.type !== 'error') return;
+    this.proc.log(`Sidebar post message: ${message.type}`);
+    void this.view.webview.postMessage(message).then((ok) => {
+      this.proc.log(`Sidebar post delivered=${ok}`);
+    });
+
+    if (!this.hostAcked && (message.type === 'bootstrap' || message.type === 'connection.state' || message.type === 'session.snapshot')) {
+      this.scheduleHtmlRefresh();
+    }
+  }
+
+  private scheduleHtmlRefresh() {
+    if (this.htmlRefreshTimer || !this.view) return;
+    this.htmlRefreshTimer = setTimeout(() => {
+      this.htmlRefreshTimer = undefined;
+      if (!this.view || this.hostAcked) return;
+      this.proc.log('Sidebar fallback html refresh');
+      this.view.webview.html = getWebviewHtml(this.view.webview, this.extensionUri, this.viewState());
+    }, 250);
+  }
+}
+
+type LoadedSession = {
+  info: Session;
+  status: SessionStatus;
+  messages: Array<{ info: Message; parts: Part[] }>;
+  pendingPermissions: PermissionRequest[];
+  pendingQuestions: QuestionRequest[];
+  diffs: SnapshotFileDiff[];
+};

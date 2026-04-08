@@ -1,0 +1,423 @@
+import { EventEmitter } from 'events';
+import type {
+  AgentPart,
+  AssistantMessage,
+  Message,
+  Part,
+  GlobalEvent,
+  PermissionRequest,
+  QuestionRequest,
+  Session,
+  SessionStatus,
+  SnapshotFileDiff,
+  UserMessage,
+} from '@opencode-ai/sdk/v2/client';
+import type {
+  DiffState,
+  DraftSelection,
+  MessageSummary,
+  PermissionState,
+  QuestionState,
+  SessionSnapshotPayload,
+  SessionState,
+  SessionStatusState,
+  SessionSummary,
+  TranscriptMessage,
+  TranscriptPartState,
+} from '../../shared/models';
+
+const idle: SessionStatus = { type: 'idle' };
+
+type Mutable = {
+  info: Session;
+  status: SessionStatus;
+  messages: Message[];
+  parts: Map<string, Part[]>;
+  permissions: PermissionRequest[];
+  questions: QuestionRequest[];
+  diffs: SnapshotFileDiff[];
+};
+
+function sortById<T extends { id: string }>(items: readonly T[]) {
+  return [...items].sort((a, b) => a.id.localeCompare(b.id));
+}
+
+function upsertById<T extends { id: string }>(items: readonly T[], item: T) {
+  const next = [...items];
+  const index = next.findIndex((value) => value.id === item.id);
+  if (index === -1) {
+    next.push(item);
+    return sortById(next);
+  }
+  next[index] = item;
+  return next;
+}
+
+function removeById<T extends { id: string }>(items: readonly T[], id: string) {
+  return items.filter((item) => item.id !== id);
+}
+
+function toSessionSummary(info: Session): SessionSummary {
+  return {
+    id: info.id,
+    directory: info.directory,
+    title: info.title,
+    updatedAt: info.time.updated,
+  };
+}
+
+function toStatus(status: SessionStatus): SessionStatusState {
+  if (status.type === 'retry') {
+    return {
+      type: 'retry',
+      attempt: status.attempt,
+      message: status.message,
+      next: status.next,
+    };
+  }
+
+  return { type: status.type };
+}
+
+function toMessageSummary(message: Message): MessageSummary {
+  if (message.role === 'user') {
+    const user = message as UserMessage;
+    return {
+      id: user.id,
+      sessionID: user.sessionID,
+      role: 'user',
+      createdAt: user.time.created,
+      agent: user.agent,
+      model: {
+        providerID: user.model.providerID,
+        modelID: user.model.modelID,
+      },
+      variant: user.model.variant,
+    };
+  }
+
+  const assistant = message as AssistantMessage;
+  return {
+    id: assistant.id,
+    sessionID: assistant.sessionID,
+    role: 'assistant',
+    createdAt: assistant.time.created,
+    completedAt: assistant.time.completed,
+    parentID: assistant.parentID,
+    agent: assistant.agent,
+    model: {
+      providerID: assistant.providerID,
+      modelID: assistant.modelID,
+    },
+    variant: assistant.variant,
+  };
+}
+
+function toDiff(diff: SnapshotFileDiff): DiffState {
+  return {
+    file: diff.file,
+    patch: diff.patch,
+    additions: diff.additions,
+    deletions: diff.deletions,
+    status: diff.status,
+  };
+}
+
+function toPermission(permission: PermissionRequest): PermissionState {
+  return {
+    id: permission.id,
+    sessionID: permission.sessionID,
+    permission: permission.permission,
+    patterns: [...permission.patterns],
+  };
+}
+
+function toQuestion(question: QuestionRequest): QuestionState {
+  return {
+    id: question.id,
+    sessionID: question.sessionID,
+    questions: question.questions.map((item) => ({
+      question: item.question,
+      header: item.header,
+      multiple: item.multiple,
+      options: item.options.map((option) => ({
+        label: option.label,
+        description: option.description,
+      })),
+    })),
+  };
+}
+
+function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState {
+  const status = typeof part.state === 'object' && part.state && 'status' in part.state ? String(part.state.status) : 'unknown';
+  const title = typeof part.state === 'object' && part.state && 'title' in part.state && typeof part.state.title === 'string'
+    ? part.state.title
+    : undefined;
+
+  return {
+    id: part.id,
+    messageID: part.messageID,
+    type: 'tool',
+    tool: part.tool,
+    status,
+    title,
+  };
+}
+
+function toPart(part: Part): TranscriptPartState {
+  switch (part.type) {
+    case 'text':
+      return { id: part.id, messageID: part.messageID, type: 'text', text: part.text };
+    case 'reasoning':
+      return { id: part.id, messageID: part.messageID, type: 'reasoning', text: part.text };
+    case 'tool':
+      return toToolState(part);
+    case 'subtask':
+      return { id: part.id, messageID: part.messageID, type: 'subtask', description: part.description };
+    case 'agent':
+      return { id: part.id, messageID: part.messageID, type: 'agent', name: (part as AgentPart).name };
+    case 'retry':
+      return { id: part.id, messageID: part.messageID, type: 'retry', message: part.error.data.message };
+    case 'patch':
+      return { id: part.id, messageID: part.messageID, type: 'patch', files: [...part.files] };
+    default:
+      return { id: part.id, messageID: part.messageID, type: 'unknown' };
+  }
+}
+
+export class SessionStore extends EventEmitter {
+  private sessions = new Map<string, Mutable>();
+  private active: string | null = null;
+
+  get activeSessionId() {
+    return this.active;
+  }
+
+  set activeSessionId(id: string | null) {
+    this.active = id;
+    this.emit('change');
+  }
+
+  get snapshot(): SessionSnapshotPayload {
+    return {
+      activeSessionId: this.active,
+      sessions: [...this.sessions.values()]
+        .map((session) => this.serialize(session))
+        .sort((a, b) => b.info.updatedAt - a.info.updatedAt),
+    };
+  }
+
+  getSession(id: string) {
+    const session = this.sessions.get(id);
+    return session ? this.serialize(session) : undefined;
+  }
+
+  bootstrap() {
+    this.sessions.clear();
+    if (this.active && !this.sessions.has(this.active)) this.active = null;
+    this.emit('change');
+  }
+
+  upsertSession(info: Session, extras?: { status?: SessionStatus; pendingPermissions?: PermissionRequest[]; pendingQuestions?: QuestionRequest[]; diffs?: SnapshotFileDiff[] }) {
+    const current = this.sessions.get(info.id);
+    if (current) {
+      current.info = info;
+      if (extras?.status) current.status = extras.status;
+      if (extras?.pendingPermissions) current.permissions = sortById(extras.pendingPermissions);
+      if (extras?.pendingQuestions) current.questions = sortById(extras.pendingQuestions);
+      if (extras?.diffs) current.diffs = [...extras.diffs];
+    } else {
+      this.sessions.set(info.id, {
+        info,
+        status: extras?.status ?? idle,
+        messages: [],
+        parts: new Map(),
+        permissions: sortById(extras?.pendingPermissions ?? []),
+        questions: sortById(extras?.pendingQuestions ?? []),
+        diffs: [...(extras?.diffs ?? [])],
+      });
+    }
+    this.emit('change');
+  }
+
+  setMessages(sessionID: string, rows: Array<{ info: Message; parts: Part[] }>) {
+    const session = this.sessions.get(sessionID);
+    if (!session) return;
+    session.messages = sortById(rows.map((row) => row.info));
+    session.parts = new Map(rows.map((row) => [row.info.id, sortById(row.parts)]));
+    this.emit('change');
+  }
+
+  setDiffs(sessionID: string, diffs: SnapshotFileDiff[]) {
+    const session = this.sessions.get(sessionID);
+    if (!session) return;
+    session.diffs = [...diffs];
+    this.emit('change');
+  }
+
+  setPending(sessionID: string, permissions: PermissionRequest[], questions: QuestionRequest[]) {
+    const session = this.sessions.get(sessionID);
+    if (!session) return;
+    session.permissions = sortById(permissions);
+    session.questions = sortById(questions);
+    this.emit('change');
+  }
+
+  addOptimisticUserMessage(sessionID: string, text: string, draft?: DraftSelection) {
+    const session = this.sessions.get(sessionID);
+    if (!session) return;
+    const created = Date.now();
+    const id = `local-${created}`;
+    const msg: Message = {
+      id,
+      sessionID,
+      role: 'user',
+      time: { created },
+      agent: draft?.agent ?? 'build',
+      model: draft?.model ?? { providerID: 'local', modelID: 'local' },
+    };
+    if (draft?.variant) msg.model.variant = draft.variant;
+    const part: Part = {
+      id: `${id}-text`,
+      sessionID,
+      messageID: id,
+      type: 'text',
+      text,
+    };
+    session.messages = upsertById(session.messages, msg);
+    session.parts.set(id, [part]);
+    this.emit('change');
+  }
+
+  removeSession(sessionID: string) {
+    this.sessions.delete(sessionID);
+    if (this.active === sessionID) this.active = null;
+    this.emit('change');
+  }
+
+  handleEvent(event: GlobalEvent) {
+    const payload = event.payload;
+    switch (payload.type) {
+      case 'session.created':
+      case 'session.updated': {
+        this.upsertSession(payload.properties.info);
+        return;
+      }
+      case 'session.deleted': {
+        this.removeSession(payload.properties.info.id);
+        return;
+      }
+      case 'session.status': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.status = payload.properties.status;
+        this.emit('change');
+        return;
+      }
+      case 'session.diff': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.diffs = [...payload.properties.diff];
+        this.emit('change');
+        return;
+      }
+      case 'message.updated': {
+        const session = this.sessions.get(payload.properties.info.sessionID);
+        if (!session) return;
+        session.messages = upsertById(session.messages, payload.properties.info);
+        this.emit('change');
+        return;
+      }
+      case 'message.removed': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.messages = removeById(session.messages, payload.properties.messageID);
+        session.parts.delete(payload.properties.messageID);
+        this.emit('change');
+        return;
+      }
+      case 'message.part.updated': {
+        const part = payload.properties.part;
+        const session = this.sessions.get(part.sessionID);
+        if (!session) return;
+        const parts = session.parts.get(part.messageID) ?? [];
+        session.parts.set(part.messageID, upsertById(parts, part));
+        this.emit('change');
+        return;
+      }
+      case 'message.part.delta': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        const parts = session.parts.get(payload.properties.messageID) ?? [];
+        const index = parts.findIndex((part) => part.id === payload.properties.partID);
+        if (index === -1) return;
+        const current = parts[index];
+        const field = payload.properties.field;
+        if (typeof current !== 'object' || !(field in current)) return;
+        const value = current[field as keyof Part];
+        if (typeof value !== 'string') return;
+        const next = [...parts];
+        next[index] = {
+          ...current,
+          [field]: value + payload.properties.delta,
+        } as Part;
+        session.parts.set(payload.properties.messageID, next);
+        this.emit('change');
+        return;
+      }
+      case 'message.part.removed': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        const parts = session.parts.get(payload.properties.messageID) ?? [];
+        session.parts.set(payload.properties.messageID, removeById(parts, payload.properties.partID));
+        this.emit('change');
+        return;
+      }
+      case 'permission.asked': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.permissions = upsertById(session.permissions, payload.properties);
+        this.emit('change');
+        return;
+      }
+      case 'permission.replied': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.permissions = removeById(session.permissions, payload.properties.requestID);
+        this.emit('change');
+        return;
+      }
+      case 'question.asked': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.questions = upsertById(session.questions, payload.properties);
+        this.emit('change');
+        return;
+      }
+      case 'question.replied':
+      case 'question.rejected': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.questions = removeById(session.questions, payload.properties.requestID);
+        this.emit('change');
+        return;
+      }
+    }
+  }
+
+  private serialize(session: Mutable): SessionState {
+    const messages: TranscriptMessage[] = sortById(session.messages).map((info) => ({
+      info: toMessageSummary(info),
+      parts: sortById(session.parts.get(info.id) ?? []).map(toPart),
+    }));
+
+    return {
+      info: toSessionSummary(session.info),
+      status: toStatus(session.status),
+      messages,
+      pendingPermissions: sortById(session.permissions).map(toPermission),
+      pendingQuestions: sortById(session.questions).map(toQuestion),
+      diffs: session.diffs.map(toDiff),
+    };
+  }
+}

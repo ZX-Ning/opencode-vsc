@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.DS_Store
+*.vsix
+
+# Local VS Code state
+.vscode/*.log
+
+# Local upstream reference checkout
+reference/opencode/
