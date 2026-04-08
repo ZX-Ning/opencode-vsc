@@ -35,6 +35,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   ) {
     this.proc.on('statusChange', () => {
       this.postConnection();
+      if (this.proc.status === 'running' && this.ready) {
+        void this.bootstrap();
+      }
     });
 
     this.events.on('error', (err) => {
@@ -153,6 +156,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         if (item) {
           this.contextChips = [...this.contextChips, item];
           this.post({ type: 'context.preview', payload: item });
+        } else {
+          this.post({ type: 'error', payload: { message: 'No active editor found to attach' } });
         }
         return;
       }
@@ -161,6 +166,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         if (item) {
           this.contextChips = [...this.contextChips, item];
           this.post({ type: 'context.preview', payload: item });
+        } else {
+          this.post({ type: 'error', payload: { message: 'No selection found in active editor' } });
         }
         return;
       }

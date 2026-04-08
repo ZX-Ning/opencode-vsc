@@ -176,7 +176,7 @@ export function App() {
               sessions: message.payload.sessions,
               draft: {
                 ...message.payload.draft,
-                selection: state.draft.selection ?? message.payload.draft.selection,
+                selection: Object.keys(state.draft.selection ?? {}).length > 0 ? state.draft.selection : message.payload.draft.selection,
               },
               error: undefined,
             });

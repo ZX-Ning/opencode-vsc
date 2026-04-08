@@ -16,7 +16,7 @@ export const DraftControls: Component<Props> = (props) => {
   const models = () =>
     props.models.map((model) => ({
       label: `${model.providerName} / ${model.name}`,
-      value: `${model.providerID}/${model.id}`,
+      value: JSON.stringify({ providerID: model.providerID, modelID: model.id }),
     }));
 
   return (
@@ -37,13 +37,20 @@ export const DraftControls: Component<Props> = (props) => {
         <span class="draft-label">Model</span>
         <select
           class="draft-select"
-          value={props.selection.model ? `${props.selection.model.providerID}/${props.selection.model.modelID}` : ''}
+          value={props.selection.model ? JSON.stringify({ providerID: props.selection.model.providerID, modelID: props.selection.model.modelID }) : ''}
           onChange={(event) => {
             const value = event.currentTarget.value;
-            const [providerID, modelID] = value.split('/');
+            let parsedModel = undefined;
+            if (value) {
+              try {
+                parsedModel = JSON.parse(value);
+              } catch (e) {
+                // Ignore parsing errors
+              }
+            }
             props.onChange({
               ...props.selection,
-              model: providerID && modelID ? { providerID, modelID } : undefined,
+              model: parsedModel,
               variant: undefined,
             });
           }}
