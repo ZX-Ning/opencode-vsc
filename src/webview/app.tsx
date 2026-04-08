@@ -7,7 +7,6 @@ import { Composer } from './components/composer';
 import { DraftControls } from './components/draft-controls';
 import { PermissionCard } from './components/permission-card';
 import { QuestionCard } from './components/question-card';
-import { SessionList } from './components/session-list';
 import { SidebarHeader } from './components/sidebar-header';
 import { Transcript } from './components/transcript';
 
@@ -231,7 +230,10 @@ export function App() {
       <div class="app-shell">
         <SidebarHeader
           connectionStatus={state.connectionStatus}
+          sessions={state.sessions}
+          activeSessionId={state.activeSessionId}
           onNewSession={() => post({ type: 'session.new' })}
+          onSelectSession={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
         />
 
         <Show when={state.error}>
@@ -239,24 +241,6 @@ export function App() {
         </Show>
 
         <div class="app-body">
-          <SessionList
-            sessions={state.sessions}
-            activeSessionId={state.activeSessionId}
-            onSelect={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
-          />
-
-          <DraftControls
-            models={state.draft.models}
-            agents={state.draft.agents}
-            selection={state.draft.selection}
-            onChange={(draft) => {
-              const next = cloneDraft(draft);
-              setState('draft', 'selection', next);
-              persist({ draft: next });
-              post({ type: 'draft.set', payload: next });
-            }}
-          />
-
           <Transcript
             messages={activeSession()?.messages ?? []}
             onRetry={(messageID) => {
@@ -300,6 +284,18 @@ export function App() {
             />
           </Show>
         </div>
+
+        <DraftControls
+          models={state.draft.models}
+          agents={state.draft.agents}
+          selection={state.draft.selection}
+          onChange={(draft) => {
+            const next = cloneDraft(draft);
+            setState('draft', 'selection', next);
+            persist({ draft: next });
+            post({ type: 'draft.set', payload: next });
+          }}
+        />
 
         <Composer
           onSend={(text) => {

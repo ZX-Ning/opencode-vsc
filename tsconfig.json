@@ -12,7 +12,8 @@
     "moduleResolution": "NodeNext",
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
-    "outDir": "dist"
+    "outDir": "dist",
+    "types": ["node"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

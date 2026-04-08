@@ -1,5 +1,6 @@
-import { Component, createSignal, For } from 'solid-js';
+import { Component, createSignal, For, Show } from 'solid-js';
 import type { ContextChip } from '../../shared/models';
+import { Paperclip, Send } from 'lucide-solid';
 
 interface ComposerProps {
 	onSend: (text: string) => void;
@@ -11,6 +12,7 @@ interface ComposerProps {
 
 export const Composer: Component<ComposerProps> = (props) => {
 	const [text, setText] = createSignal('');
+	const [attachOpen, setAttachOpen] = createSignal(false);
 
 	const handleSend = () => {
 		if (text().trim()) {
@@ -31,7 +33,7 @@ export const Composer: Component<ComposerProps> = (props) => {
 					)}
 				</For>
 			</div>
-			<div>
+			<div class="composer-inner">
 				<textarea
 					class="composer-input"
 					value={text()}
@@ -44,15 +46,41 @@ export const Composer: Component<ComposerProps> = (props) => {
 					}}
 					placeholder="Ask OpenCode..."
 				/>
-				<div class="composer-actions">
-					<button class="btn btn-secondary" onClick={props.onAttachFile}>
-						Attach File
-					</button>
-					<button class="btn btn-secondary" onClick={props.onAttachSelection}>
-						Attach Selection
-					</button>
-					<button class="btn btn-primary push-right" onClick={handleSend}>
-						Send
+				<div class="composer-toolbar">
+					<div class="attach-container">
+						<button 
+							class="btn btn-icon btn-secondary" 
+							onClick={() => setAttachOpen(!attachOpen())}
+							title="Attach Context"
+						>
+							<Paperclip size={16} />
+						</button>
+						<Show when={attachOpen()}>
+							<div class="dropdown-overlay" onClick={() => setAttachOpen(false)} />
+							<div class="dropdown-menu attach-dropdown">
+								<button 
+									class="dropdown-item" 
+									onClick={() => {
+										setAttachOpen(false);
+										props.onAttachFile();
+									}}
+								>
+									Active File
+								</button>
+								<button 
+									class="dropdown-item" 
+									onClick={() => {
+										setAttachOpen(false);
+										props.onAttachSelection();
+									}}
+								>
+									Selection
+								</button>
+							</div>
+						</Show>
+					</div>
+					<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!text().trim()} title="Send">
+						<Send size={16} />
 					</button>
 				</div>
       </div>
