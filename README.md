@@ -35,4 +35,4 @@ You must have an OpenCode server running. By default, the extension points to `h
 
 ## Development
 
-Check out AGENTS.md and the `docs/` folder for architecture details and postmortems.
+Check out [AGENTS.md](AGENTS.md) and the [docs/](docs/) folder for architecture details and postmortems.

@@ -4,17 +4,17 @@ This repository is a VS Code extension for OpenCode with a sidebar-first `Webvie
 
 Read these documents before making non-trivial changes:
 
-- `docs/architecture.md`
+- [architecture](docs/architecture.md)
   Current runtime architecture, boundaries, and major components.
-- `docs/webview-guide.md`
+- [webview-guide](docs/webview-guide.md)
   Webview lifecycle, messaging rules, and pitfalls specific to VS Code `WebviewView`.
-- `docs/development-guide.md`
+- [development-guide](docs/development-guide.md)
   Local development workflow, debug flow, and verification steps.
-- `docs/frontend-and-ui-guide.md`
+- [frontend-and-ui-guide](docs/frontend-and-ui-guide.md)
   UI, layout, and frontend implementation guidance for the sidebar experience.
-- `docs/protocol-and-state.md`
+- [protocol-and-state](docs/protocol-and-state.md)
   Shared DTOs, host/webview protocol, and state ownership.
-- `docs/postmortem-webview-debugging.md`
+- [postmortem-webview-debugging](docs/postmortem-webview-debugging.md)
   Pitfalls and mistakes discovered during the long webview debugging process.
 
 General guidance:
