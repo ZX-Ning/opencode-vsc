@@ -1,6 +1,6 @@
 {
   "name": "opencode-vscode",
-  "displayName": "OpenCode",
+  "displayName": "Opencode VSC",
   "description": "Sidebar-first AI coding assistant powered by OpenCode",
   "version": "0.1.0",
   "publisher": "opencode",
@@ -18,7 +18,7 @@
       "activitybar": [
         {
           "id": "opencode-sidebar",
-          "title": "OpenCode",
+          "title": "Opencode VSC",
           "icon": "media/icon.svg"
         }
       ]
@@ -43,7 +43,7 @@
       }
     ],
     "configuration": {
-      "title": "OpenCode",
+      "title": "Opencode VSC",
       "properties": {
         "opencode.server.url": {
           "type": "string",
