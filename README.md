@@ -3,8 +3,20 @@
 A sidebar-first AI coding assistant powered by OpenCode.
 
 ## Note: 
-This Project is heavily vibe-coded and it's still WIP. 
+This Project is heavily vibe-coded, and it's still WIP. 
+
 Main model used: GPT-5.4, Gemini-3.1-pro. Agent: OpenCode.
+
+## Screenshots
+<img height="800" src="https://github.com/user-attachments/assets/91aa04e4-78ab-497d-9316-f6317edb1c39" />
+
+_Dark Theme_
+<br/>
+
+<img height="800" src="https://github.com/user-attachments/assets/f9e4a06d-ec93-45a8-abe7-7814c2d34b2a" />
+
+_Light Theme_
+
 
 ## Features
 
