@@ -87,6 +87,8 @@
   },
   "dependencies": {
     "@opencode-ai/sdk": "^1.4.0",
+    "dompurify": "^3.3.3",
+    "marked": "^18.0.0",
     "solid-js": "^1.8.15"
   }
 }

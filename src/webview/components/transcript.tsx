@@ -1,3 +1,5 @@
+import DOMPurify from 'dompurify';
+import { marked } from 'marked';
 import { For, Show, type Component } from 'solid-js';
 import type { TranscriptMessage, TranscriptPartState } from '../../shared/models';
 
@@ -24,6 +26,20 @@ function text(parts: TranscriptPartState[]) {
     .join('\n\n');
 }
 
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
+function renderMarkdown(source: string) {
+  const raw = marked.parse(source) as string;
+  return DOMPurify.sanitize(raw, {
+    FORBID_TAGS: ['img'],
+    FORBID_ATTR: ['style', 'onerror', 'onload'],
+    ALLOWED_URI_REGEXP: /^$/,
+  });
+}
+
 export const Transcript: Component<Props> = (props) => {
   return (
     <div class="transcript">
@@ -36,7 +52,12 @@ export const Transcript: Component<Props> = (props) => {
           return (
             <div class={`bubble ${user ? 'bubble-user' : 'bubble-assistant'}`}>
               <div class="bubble-role">{user ? 'You' : 'OpenCode'}</div>
-              <div class="bubble-text">{content || (running ? 'Working...' : 'No output yet')}</div>
+              <Show
+                when={content}
+                fallback={<div class="bubble-text">{running ? 'Working...' : 'No output yet'}</div>}
+              >
+                <div class="bubble-text markdown-body" innerHTML={renderMarkdown(content)} />
+              </Show>
               <Show when={!user}>
                 <button class="bubble-action" onClick={() => props.onRetry(message.info.parentID ?? message.info.id)}>
                   Retry from here
