@@ -607,7 +607,7 @@ textarea {
   background: transparent;
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
-  max-width: 100px;
+  max-width: 140px;
   transition: background-color 0.1s, border-color 0.1s;
 }
 
@@ -642,5 +642,33 @@ textarea {
   bottom: calc(100% + 4px);
   left: 0;
   min-width: 140px;
-  max-width: 250px;
+  max-width: 300px;
+}
+
+.draft-dropdown-searchable {
+  min-width: 250px;
+}
+
+.dropdown-search-container {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
+  position: sticky;
+  top: 0;
+  background: var(--vscode-dropdown-background);
+  z-index: 10;
+}
+
+.dropdown-search-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+
+.dropdown-search-input:focus {
+  border-color: var(--vscode-focusBorder);
 }

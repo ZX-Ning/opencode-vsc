@@ -1,4 +1,4 @@
-import { For, type Component } from 'solid-js';
+import { For, createSignal, type Component } from 'solid-js';
 import type { AgentOption, DraftSelection, ModelOption } from '../../shared/models';
 import { ChevronDown } from './icons';
 import { Dropdown } from './dropdown';
@@ -21,19 +21,32 @@ function DraftSelect(props: {
   options: { label: string; value: string }[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  searchable?: boolean;
 }) {
+  const [searchQuery, setSearchQuery] = createSignal('');
   const displayLabel = () => props.options.find(o => o.value === props.value)?.label || props.defaultLabel;
+
+  const filteredOptions = () => {
+    if (!props.searchable || !searchQuery().trim()) {
+      return props.options;
+    }
+    const query = searchQuery().toLowerCase();
+    return props.options.filter(opt => opt.label.toLowerCase().includes(query));
+  };
 
   return (
     <Dropdown
       containerClass="draft-dropdown-container"
-      menuClass="draft-dropdown-menu"
+      menuClass={`draft-dropdown-menu ${props.searchable ? 'draft-dropdown-searchable' : ''}`}
       disabled={props.disabled}
       trigger={(triggerProps) => (
         <button
           class="draft-dropdown-btn"
           disabled={triggerProps.disabled}
-          onClick={triggerProps.toggle}
+          onClick={() => {
+            setSearchQuery('');
+            triggerProps.toggle();
+          }}
           title={props.label}
           aria-expanded={triggerProps['aria-expanded']}
           aria-haspopup={triggerProps['aria-haspopup']}
@@ -45,6 +58,18 @@ function DraftSelect(props: {
       )}
       menu={({ close }) => (
         <div class="dropdown-list">
+          {props.searchable && (
+            <div class="dropdown-search-container">
+              <input
+                type="text"
+                class="dropdown-search-input"
+                placeholder={`Search ${props.label.toLowerCase()}...`}
+                value={searchQuery()}
+                onInput={(e) => setSearchQuery(e.currentTarget.value)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </div>
+          )}
           <button
             class={`dropdown-item ${props.value === '' ? 'dropdown-item-active' : ''}`}
             onClick={() => {
@@ -54,7 +79,7 @@ function DraftSelect(props: {
           >
             {props.defaultLabel}
           </button>
-          <For each={props.options}>
+          <For each={filteredOptions()}>
             {(opt) => (
               <button
                 class={`dropdown-item ${props.value === opt.value ? 'dropdown-item-active' : ''}`}
@@ -67,6 +92,9 @@ function DraftSelect(props: {
               </button>
             )}
           </For>
+          {props.searchable && filteredOptions().length === 0 && (
+            <div class="dropdown-item-empty">No results found</div>
+          )}
         </div>
       )}
     />
@@ -95,6 +123,7 @@ export const DraftControls: Component<Props> = (props) => {
         defaultLabel="Model"
         value={props.selection.model ? JSON.stringify({ providerID: props.selection.model.providerID, modelID: props.selection.model.modelID }) : ''}
         options={models()}
+        searchable={true}
         onChange={(value) => {
           let parsedModel = undefined;
           if (value) {
