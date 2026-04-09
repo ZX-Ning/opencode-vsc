@@ -39,56 +39,6 @@ textarea {
   padding-bottom: 8px;
 }
 
-.session-list {
-  padding: 0 12px;
-}
-
-.session-items {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.session-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-  padding: 9px 10px;
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 8px;
-  background: var(--vscode-editor-background);
-  color: inherit;
-  text-align: left;
-}
-
-.session-item-active {
-  border-color: var(--vscode-focusBorder);
-  background: color-mix(in srgb, var(--vscode-button-background) 10%, var(--vscode-editor-background));
-}
-
-.session-item-title {
-  font-size: 12px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-item-meta {
-  font-size: 11px;
-  opacity: 0.75;
-}
-
-.session-empty {
-  padding: 10px;
-  border: 1px dashed var(--vscode-panel-border);
-  border-radius: 8px;
-  font-size: 12px;
-  opacity: 0.75;
-}
-
-
 .sidebar-header {
   display: flex;
   align-items: center;

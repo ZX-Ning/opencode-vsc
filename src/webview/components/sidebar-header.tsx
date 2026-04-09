@@ -44,8 +44,14 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
       <Dropdown
         containerClass="header-dropdown-container"
         menuClass="header-dropdown"
-        trigger={({ toggle }) => (
-          <button class="header-title-btn" onClick={toggle}>
+        trigger={(triggerProps) => (
+          <button
+            class="header-title-btn"
+            onClick={triggerProps.toggle}
+            aria-expanded={triggerProps['aria-expanded']}
+            aria-haspopup={triggerProps['aria-haspopup']}
+            ref={triggerProps.ref}
+          >
             <span class="header-title-text">{activeLabel()}</span>
             <ChevronDown size={14} class="header-title-icon" />
           </button>

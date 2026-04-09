@@ -180,7 +180,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  private async bootstrap() {
+  private bootstrapPromise?: Promise<void>;
+
+  private bootstrap() {
+    if (this.bootstrapPromise) return this.bootstrapPromise;
+
+    this.bootstrapPromise = this.runBootstrap().finally(() => {
+      this.bootstrapPromise = undefined;
+    });
+
+    return this.bootstrapPromise;
+  }
+
+  private async runBootstrap() {
     this.proc.log('Sidebar bootstrap start');
     const directory = this.root();
 

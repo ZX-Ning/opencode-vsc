@@ -29,12 +29,15 @@ function DraftSelect(props: {
       containerClass="draft-dropdown-container"
       menuClass="draft-dropdown-menu"
       disabled={props.disabled}
-      trigger={({ toggle, disabled }) => (
+      trigger={(triggerProps) => (
         <button
           class="draft-dropdown-btn"
-          disabled={disabled}
-          onClick={toggle}
+          disabled={triggerProps.disabled}
+          onClick={triggerProps.toggle}
           title={props.label}
+          aria-expanded={triggerProps['aria-expanded']}
+          aria-haspopup={triggerProps['aria-haspopup']}
+          ref={triggerProps.ref}
         >
           <span class="draft-dropdown-text">{displayLabel()}</span>
           <ChevronDown size={12} class="draft-dropdown-icon" />

@@ -54,14 +54,6 @@ window.addEventListener('message', (event: MessageEvent<HostMessage>) => {
   enqueueHostMessage(event.data);
 });
 
-window.onmessage = (event: MessageEvent<HostMessage>) => {
-  enqueueHostMessage(event.data);
-};
-
-self.addEventListener('message', (event: MessageEvent<HostMessage>) => {
-  enqueueHostMessage(event.data);
-});
-
 type State = {
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
   activeSessionId: string | null;
@@ -171,13 +163,14 @@ export function App() {
           case 'bootstrap':
             setState({
               connectionStatus: message.payload.connectionStatus,
-              activeSessionId: state.activeSessionId ?? message.payload.activeSessionId,
+              activeSessionId: message.payload.activeSessionId,
               sessions: message.payload.sessions,
-              draft: {
-                ...message.payload.draft,
-                selection: Object.keys(state.draft.selection ?? {}).length > 0 ? state.draft.selection : message.payload.draft.selection,
-              },
+              draft: message.payload.draft,
               error: undefined,
+            });
+            persist({
+              activeSessionId: message.payload.activeSessionId,
+              draft: cloneDraft(message.payload.draft.selection),
             });
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;

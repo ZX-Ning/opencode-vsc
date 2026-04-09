@@ -51,11 +51,14 @@ export const Composer: Component<ComposerProps> = (props) => {
 					<Dropdown
 						containerClass="attach-container"
 						menuClass="attach-dropdown"
-						trigger={({ toggle }) => (
+						trigger={(triggerProps) => (
 							<button 
 								class="btn btn-icon btn-secondary" 
-								onClick={toggle}
+								onClick={triggerProps.toggle}
 								title="Attach Context"
+								aria-expanded={triggerProps['aria-expanded']}
+								aria-haspopup={triggerProps['aria-haspopup']}
+								ref={triggerProps.ref}
 							>
 								<Paperclip size={16} />
 							</button>
