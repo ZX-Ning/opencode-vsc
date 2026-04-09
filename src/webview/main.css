@@ -289,6 +289,46 @@ textarea {
   padding: 0 12px 12px;
 }
 
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--vscode-foreground);
+  opacity: 0.8;
+  transition: opacity 0.1s;
+}
+
+.collapsible-header:hover {
+  opacity: 1;
+}
+
+.collapsible-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.collapsible-icon {
+  transition: transform 0.2s ease-in-out;
+  transform: rotate(-90deg);
+}
+
+.collapsible-icon.expanded {
+  transform: rotate(0deg);
+}
+
+.changed-files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
 .changed-row {
   display: flex;
   align-items: center;

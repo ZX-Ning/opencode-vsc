@@ -284,10 +284,6 @@ export function App() {
                 if (!state.activeSessionId) return;
                 post({ type: 'file.open', payload: { sessionID: state.activeSessionId, path } });
               }}
-              onOpenDiff={(path) => {
-                if (!state.activeSessionId) return;
-                post({ type: 'diff.open', payload: { sessionID: state.activeSessionId, path } });
-              }}
             />
           </Show>
         </div>
