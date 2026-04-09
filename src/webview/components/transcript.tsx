@@ -5,7 +5,7 @@ import type { TranscriptMessage, TranscriptPartState } from '../../shared/models
 
 type Props = {
   messages: TranscriptMessage[];
-  onRetry: (messageID: string) => void;
+  onRevert: (messageID: string) => void;
 };
 
 function text(parts: TranscriptPartState[]) {
@@ -58,9 +58,9 @@ export const Transcript: Component<Props> = (props) => {
               >
                 <div class="bubble-text markdown-body" innerHTML={renderMarkdown(content)} />
               </Show>
-              <Show when={!user}>
-                <button class="bubble-action" onClick={() => props.onRetry(message.info.parentID ?? message.info.id)}>
-                  Retry from here
+              <Show when={user}>
+                <button class="bubble-action" onClick={() => props.onRevert(message.info.id)}>
+                  Revert to here
                 </button>
               </Show>
             </div>

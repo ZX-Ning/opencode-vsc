@@ -263,32 +263,6 @@ export class SessionStore extends EventEmitter {
     this.emit('change');
   }
 
-  addOptimisticUserMessage(sessionID: string, text: string, draft?: DraftSelection) {
-    const session = this.sessions.get(sessionID);
-    if (!session) return;
-    const created = Date.now();
-    const id = `local-${created}`;
-    const msg: Message = {
-      id,
-      sessionID,
-      role: 'user',
-      time: { created },
-      agent: draft?.agent ?? 'build',
-      model: draft?.model ?? { providerID: 'local', modelID: 'local' },
-    };
-    if (draft?.variant) msg.model.variant = draft.variant;
-    const part: Part = {
-      id: `${id}-text`,
-      sessionID,
-      messageID: id,
-      type: 'text',
-      text,
-    };
-    session.messages = upsertById(session.messages, msg);
-    session.parts.set(id, [part]);
-    this.emit('change');
-  }
-
   removeSession(sessionID: string) {
     this.sessions.delete(sessionID);
     if (this.active === sessionID) this.active = null;
@@ -406,7 +380,18 @@ export class SessionStore extends EventEmitter {
   }
 
   private serialize(session: Mutable): SessionState {
-    const messages: TranscriptMessage[] = sortById(session.messages).map((info) => ({
+    let rawMessages = sortById(session.messages);
+    let rawPermissions = sortById(session.permissions);
+    let rawQuestions = sortById(session.questions);
+
+    const revertMsgId = session.info.revert?.messageID;
+    if (revertMsgId) {
+      rawMessages = rawMessages.filter((m) => m.id < revertMsgId);
+      rawPermissions = rawPermissions.filter((p) => !p.tool?.messageID || p.tool.messageID < revertMsgId);
+      rawQuestions = rawQuestions.filter((q) => !q.tool?.messageID || q.tool.messageID < revertMsgId);
+    }
+
+    const messages: TranscriptMessage[] = rawMessages.map((info) => ({
       info: toMessageSummary(info),
       parts: sortById(session.parts.get(info.id) ?? []).map(toPart),
     }));
@@ -415,8 +400,8 @@ export class SessionStore extends EventEmitter {
       info: toSessionSummary(session.info),
       status: toStatus(session.status),
       messages,
-      pendingPermissions: sortById(session.permissions).map(toPermission),
-      pendingQuestions: sortById(session.questions).map(toQuestion),
+      pendingPermissions: rawPermissions.map(toPermission),
+      pendingQuestions: rawQuestions.map(toQuestion),
       diffs: session.diffs.map(toDiff),
     };
   }

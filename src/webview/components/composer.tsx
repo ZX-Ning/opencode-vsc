@@ -4,6 +4,8 @@ import { Paperclip, Send, Square } from './icons';
 import { Dropdown } from './dropdown';
 
 interface ComposerProps {
+	text: string;
+	onTextChange: (text: string) => void;
 	onSend: (text: string) => void;
 	contextChips: ContextChip[];
 	onRemoveChip: (index: number) => void;
@@ -15,12 +17,10 @@ interface ComposerProps {
 }
 
 export const Composer: Component<ComposerProps> = (props) => {
-	const [text, setText] = createSignal('');
-
 	const handleSend = () => {
-		if (text().trim()) {
-			props.onSend(text());
-			setText('');
+		if (props.text.trim()) {
+			props.onSend(props.text);
+			props.onTextChange('');
 		}
 	};
 
@@ -39,8 +39,8 @@ export const Composer: Component<ComposerProps> = (props) => {
 			<div class="composer-inner">
 				<textarea
 					class="composer-input"
-					value={text()}
-					onInput={(e) => setText(e.currentTarget.value)}
+					value={props.text}
+					onInput={(e) => props.onTextChange(e.currentTarget.value)}
 					onKeyDown={(e) => {
 						if (e.key === 'Enter' && !e.shiftKey) {
 							e.preventDefault();
@@ -92,7 +92,7 @@ export const Composer: Component<ComposerProps> = (props) => {
 					<Show
 						when={props.isBusy}
 						fallback={
-							<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!text().trim()} title="Send">
+							<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!props.text.trim()} title="Send">
 								<Send size={16} />
 							</button>
 						}

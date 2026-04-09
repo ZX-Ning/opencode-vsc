@@ -197,26 +197,15 @@ export class Client {
     return sdk.session.abort({ sessionID, directory });
   }
 
-  async retryTurn(sessionID: string, directory: string, messageID: string) {
+  async revertTurn(sessionID: string, directory: string, messageID: string) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK retryTurn session=${sessionID} directory=${directory} message=${messageID}`);
+    this.proc.log(`SDK revertTurn session=${sessionID} directory=${directory} message=${messageID}`);
 
     const msg = await sdk.session.message({ sessionID, messageID, directory });
     if (!msg.data?.info || msg.data.info.role !== 'user') return;
 
     await sdk.session.revert({ sessionID, directory, messageID });
-
-    const parts = msg.data.parts.filter(
-      (part): part is Extract<Part, { type: 'text' | 'file' | 'agent' | 'subtask' }> =>
-        part.type === 'text' || part.type === 'file' || part.type === 'agent' || part.type === 'subtask',
-    );
-
-    return sdk.session.promptAsync({
-      sessionID,
-      directory,
-      parts,
-    });
   }
 
   async replyPermission(requestID: string, remember?: boolean) {

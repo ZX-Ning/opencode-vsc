@@ -139,8 +139,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       case 'session.abort':
         await this.abort(msg.payload.sessionID);
         return;
-      case 'turn.retry':
-        await this.retry(msg.payload.sessionID, msg.payload.messageID);
+      case 'turn.revert':
+        await this.revert(msg.payload.sessionID, msg.payload.messageID);
         return;
       case 'permission.approve':
         await this.client.replyPermission(msg.payload.requestID, msg.payload.remember);
@@ -281,7 +281,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     if (!session) return;
 
     this.draft.setSelection(draft ?? this.draft.snapshot.selection);
-    this.store.addOptimisticUserMessage(sessionID, text, this.draft.snapshot.selection);
     await this.client.sendPrompt(sessionID, session.info.directory, text, attachments, this.draft.snapshot.selection);
     this.contextChips = [];
     this.error = undefined;
@@ -294,10 +293,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     await this.client.abortRun(sessionID, session.info.directory);
   }
 
-  private async retry(sessionID: string, messageID: string) {
+  private async revert(sessionID: string, messageID: string) {
     const session = this.store.getSession(sessionID);
     if (!session) return;
-    await this.client.retryTurn(sessionID, session.info.directory, messageID);
+    await this.client.revertTurn(sessionID, session.info.directory, messageID);
   }
 
   private async loadSession(sessionID: string, directory: string): Promise<LoadedSession> {

@@ -172,3 +172,33 @@ Correct direction:
 4. Coalesce streaming updates.
 5. Keep the standard VS Code webview messaging pattern as the primary path.
 6. When behavior is unclear, instrument one layer at a time.
+
+### 10. Misunderstanding SDK Revert Mechanics
+
+We assumed calling `client.session.revert()` would permanently delete messages and trigger `message.removed` events from the server. When the webview still displayed the reverted messages, we thought the SDK call failed or the state needed a manual reload.
+
+Why this was wrong:
+
+- The OpenCode server's `/session/:sessionID/revert` endpoint **does not delete** messages from the database.
+- Instead, it soft-deletes them by appending a `revert: { messageID: string }` property to the `Session` object.
+- The official CLI/TUI handles this by filtering messages on the client-side (`m.id < session.revert.messageID`). Our webview naively rendered all messages it received, displaying the "deleted" messages.
+
+Correct direction:
+
+- The host must intercept `session.info.revert` during state serialization.
+- Filter out messages, pending permissions, and pending questions where `id >= revert.messageID` before sending the `SessionState` payload to the webview.
+
+### 11. Fake Optimistic Updates Breaking State
+
+We used `addOptimisticUserMessage` to inject a fake user message into the UI while waiting for the server to acknowledge a prompt. We gave it a fake ID (`local-<timestamp>`).
+
+Why this was wrong:
+
+- OpenCode generates message IDs starting with `msg_`.
+- Alphabetical string sorting (`localeCompare`) placed `local-` before `msg_`, permanently pinning the fake optimistic message to the top of the chat.
+- Because the fake ID never matched the real `msg_` ID returned via Server-Sent Events, `upsertById` never replaced it. It became a permanent duplicate.
+
+Correct direction:
+
+- Server-Sent Events (SSE) from a local server are virtually instantaneous.
+- Do not use optimistic UI updates for server-authoritative lists like messages. Wait for the real `message.created` stream to provide the definitive state and ID.

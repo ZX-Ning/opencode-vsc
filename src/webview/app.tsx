@@ -1,4 +1,4 @@
-import { ErrorBoundary, For, Show, onCleanup, onMount } from 'solid-js';
+import { ErrorBoundary, For, Show, onCleanup, onMount, createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { HostMessage, WebviewMessage } from '../shared/protocol';
 import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState } from '../shared/models';
@@ -98,6 +98,8 @@ function cloneChips(chips: ContextChip[]) {
 }
 
 export function App() {
+  const [inputText, setInputText] = createSignal('');
+  
   const [state, setState] = createStore<State>({
     connectionStatus: initial?.connectionStatus ?? 'disconnected',
     activeSessionId: initialPersisted?.activeSessionId ?? initial?.activeSessionId ?? null,
@@ -236,9 +238,21 @@ export function App() {
         <div class="app-body">
           <Transcript
             messages={activeSession()?.messages ?? []}
-            onRetry={(messageID) => {
+            onRevert={(messageID) => {
               if (!state.activeSessionId) return;
-              post({ type: 'turn.retry', payload: { sessionID: state.activeSessionId, messageID } });
+              
+              const session = activeSession();
+              if (session) {
+                const message = session.messages.find(m => m.info.id === messageID);
+                if (message && message.info.role === 'user') {
+                  const textPart = message.parts.find(p => p.type === 'text');
+                  if (textPart && 'text' in textPart && typeof textPart.text === 'string') {
+                    setInputText(textPart.text);
+                  }
+                }
+              }
+
+              post({ type: 'turn.revert', payload: { sessionID: state.activeSessionId, messageID } });
             }}
           />
 
@@ -279,6 +293,8 @@ export function App() {
         </div>
 
         <Composer
+          text={inputText()}
+          onTextChange={setInputText}
           onSend={(text) => {
             post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
             setState('contextChips', []);
