@@ -4,6 +4,7 @@
   "description": "Sidebar-first AI coding assistant powered by OpenCode",
   "version": "0.1.0",
   "publisher": "opencode",
+  "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
   },
