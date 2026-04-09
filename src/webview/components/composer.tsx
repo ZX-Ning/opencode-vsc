@@ -1,6 +1,6 @@
-import { Component, createSignal, For } from 'solid-js';
+import { Component, createSignal, For, Show } from 'solid-js';
 import type { ContextChip } from '../../shared/models';
-import { Paperclip, Send } from './icons';
+import { Paperclip, Send, Square } from './icons';
 import { Dropdown } from './dropdown';
 
 interface ComposerProps {
@@ -9,6 +9,8 @@ interface ComposerProps {
 	onRemoveChip: (index: number) => void;
 	onAttachFile: () => void;
 	onAttachSelection: () => void;
+	isBusy?: boolean;
+	onInterrupt?: () => void;
 	children?: import('solid-js').JSX.Element;
 }
 
@@ -87,9 +89,18 @@ export const Composer: Component<ComposerProps> = (props) => {
 						)}
 					/>
 					{props.children}
-					<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!text().trim()} title="Send">
-						<Send size={16} />
-					</button>
+					<Show
+						when={props.isBusy}
+						fallback={
+							<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!text().trim()} title="Send">
+								<Send size={16} />
+							</button>
+						}
+					>
+						<button class="btn btn-icon btn-primary push-right" onClick={() => props.onInterrupt?.()} title="Interrupt">
+							<Square size={16} />
+						</button>
+					</Show>
 				</div>
       </div>
     </div>

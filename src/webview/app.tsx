@@ -294,6 +294,12 @@ export function App() {
           }}
           onAttachFile={() => post({ type: 'context.attachActiveFile' })}
           onAttachSelection={() => post({ type: 'context.attachSelection' })}
+          isBusy={activeSession()?.status?.type === 'busy'}
+          onInterrupt={() => {
+            if (state.activeSessionId) {
+              post({ type: 'session.abort', payload: { sessionID: state.activeSessionId } });
+            }
+          }}
         >
           <DraftControls
             models={state.draft.models}
