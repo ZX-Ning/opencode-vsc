@@ -10,6 +10,8 @@ Read these documents before making non-trivial changes:
   Webview lifecycle, messaging rules, and pitfalls specific to VS Code `WebviewView`.
 - `docs/development-guide.md`
   Local development workflow, debug flow, and verification steps.
+- `docs/frontend-and-ui-guide.md`
+  UI, layout, and frontend implementation guidance for the sidebar experience.
 - `docs/protocol-and-state.md`
   Shared DTOs, host/webview protocol, and state ownership.
 - `docs/postmortem-webview-debugging.md`

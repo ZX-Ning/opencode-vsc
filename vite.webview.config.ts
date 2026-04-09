@@ -10,7 +10,8 @@ export default defineConfig({
     minify: false,
     lib: {
       entry: path.resolve(__dirname, 'src/webview/main.tsx'),
-      formats: ['es'],
+      formats: ['iife'],
+      name: 'OpenCodeWebview',
       fileName: 'main',
     },
     rollupOptions: {

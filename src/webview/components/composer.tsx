@@ -1,6 +1,7 @@
-import { Component, createSignal, For, Show } from 'solid-js';
+import { Component, createSignal, For } from 'solid-js';
 import type { ContextChip } from '../../shared/models';
-import { Paperclip, Send } from 'lucide-solid';
+import { Paperclip, Send } from './icons';
+import { Dropdown } from './dropdown';
 
 interface ComposerProps {
 	onSend: (text: string) => void;
@@ -8,11 +9,11 @@ interface ComposerProps {
 	onRemoveChip: (index: number) => void;
 	onAttachFile: () => void;
 	onAttachSelection: () => void;
+	children?: import('solid-js').JSX.Element;
 }
 
 export const Composer: Component<ComposerProps> = (props) => {
 	const [text, setText] = createSignal('');
-	const [attachOpen, setAttachOpen] = createSignal(false);
 
 	const handleSend = () => {
 		if (text().trim()) {
@@ -47,21 +48,24 @@ export const Composer: Component<ComposerProps> = (props) => {
 					placeholder="Ask OpenCode..."
 				/>
 				<div class="composer-toolbar">
-					<div class="attach-container">
-						<button 
-							class="btn btn-icon btn-secondary" 
-							onClick={() => setAttachOpen(!attachOpen())}
-							title="Attach Context"
-						>
-							<Paperclip size={16} />
-						</button>
-						<Show when={attachOpen()}>
-							<div class="dropdown-overlay" onClick={() => setAttachOpen(false)} />
-							<div class="dropdown-menu attach-dropdown">
+					<Dropdown
+						containerClass="attach-container"
+						menuClass="attach-dropdown"
+						trigger={({ toggle }) => (
+							<button 
+								class="btn btn-icon btn-secondary" 
+								onClick={toggle}
+								title="Attach Context"
+							>
+								<Paperclip size={16} />
+							</button>
+						)}
+						menu={({ close }) => (
+							<>
 								<button 
 									class="dropdown-item" 
 									onClick={() => {
-										setAttachOpen(false);
+										close();
 										props.onAttachFile();
 									}}
 								>
@@ -70,15 +74,16 @@ export const Composer: Component<ComposerProps> = (props) => {
 								<button 
 									class="dropdown-item" 
 									onClick={() => {
-										setAttachOpen(false);
+										close();
 										props.onAttachSelection();
 									}}
 								>
 									Selection
 								</button>
-							</div>
-						</Show>
-					</div>
+							</>
+						)}
+					/>
+					{props.children}
 					<button class="btn btn-icon btn-primary push-right" onClick={handleSend} disabled={!text().trim()} title="Send">
 						<Send size={16} />
 					</button>

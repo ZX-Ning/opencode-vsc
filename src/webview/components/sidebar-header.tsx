@@ -1,6 +1,7 @@
-import { Component, createSignal, For, Show } from 'solid-js';
+import { Component, For } from 'solid-js';
 import type { SessionState } from '../../shared/models';
-import { Plus, ChevronDown } from 'lucide-solid';
+import { Plus, ChevronDown } from './icons';
+import { Dropdown } from './dropdown';
 
 interface SidebarHeaderProps {
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
@@ -35,29 +36,29 @@ function subtitle(session: SessionState) {
 }
 
 export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
-  const [isOpen, setIsOpen] = createSignal(false);
-
   const activeSession = () => props.sessions.find(s => s.info.id === props.activeSessionId);
   const activeLabel = () => activeSession() ? label(activeSession()!) : 'New Chat';
 
   return (
     <div class="sidebar-header">
-      <div class="header-dropdown-container">
-        <button class="header-title-btn" onClick={() => setIsOpen(!isOpen())}>
-          <span class="header-title-text">{activeLabel()}</span>
-          <ChevronDown size={14} class="header-title-icon" />
-        </button>
-
-        <Show when={isOpen()}>
-          <div class="dropdown-overlay" onClick={() => setIsOpen(false)} />
-          <div class="dropdown-menu header-dropdown">
+      <Dropdown
+        containerClass="header-dropdown-container"
+        menuClass="header-dropdown"
+        trigger={({ toggle }) => (
+          <button class="header-title-btn" onClick={toggle}>
+            <span class="header-title-text">{activeLabel()}</span>
+            <ChevronDown size={14} class="header-title-icon" />
+          </button>
+        )}
+        menu={({ close }) => (
+          <>
             <div class="dropdown-header">
               <span class="dropdown-header-title">Chats</span>
               <button 
                 class="btn btn-icon btn-small" 
                 title="New Chat"
                 onClick={() => {
-                  setIsOpen(false);
+                  close();
                   props.onNewSession();
                 }}
               >
@@ -73,7 +74,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                     <button
                       class={`dropdown-item ${session.info.id === props.activeSessionId ? 'dropdown-item-active' : ''}`}
                       onClick={() => {
-                        setIsOpen(false);
+                        close();
                         props.onSelectSession(session.info.id);
                       }}
                     >
@@ -84,9 +85,9 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                 }
               </For>
             </div>
-          </div>
-        </Show>
-      </div>
+          </>
+        )}
+      />
 
       <div class="status-row" title={`Connection: ${props.connectionStatus}`}>
         <div class={`status-dot status-${props.connectionStatus}`}></div>

@@ -6,5 +6,4 @@ dist/
 # Local VS Code state
 .vscode/*.log
 
-# Local upstream reference checkout
-reference/opencode/
+reference/

@@ -285,18 +285,6 @@ export function App() {
           </Show>
         </div>
 
-        <DraftControls
-          models={state.draft.models}
-          agents={state.draft.agents}
-          selection={state.draft.selection}
-          onChange={(draft) => {
-            const next = cloneDraft(draft);
-            setState('draft', 'selection', next);
-            persist({ draft: next });
-            post({ type: 'draft.set', payload: next });
-          }}
-        />
-
         <Composer
           onSend={(text) => {
             post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
@@ -313,7 +301,19 @@ export function App() {
           }}
           onAttachFile={() => post({ type: 'context.attachActiveFile' })}
           onAttachSelection={() => post({ type: 'context.attachSelection' })}
-        />
+        >
+          <DraftControls
+            models={state.draft.models}
+            agents={state.draft.agents}
+            selection={state.draft.selection}
+            onChange={(draft) => {
+              const next = cloneDraft(draft);
+              setState('draft', 'selection', next);
+              persist({ draft: next });
+              post({ type: 'draft.set', payload: next });
+            }}
+          />
+        </Composer>
       </div>
     </ErrorBoundary>
   );

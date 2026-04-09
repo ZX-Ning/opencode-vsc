@@ -1,5 +1,7 @@
 import { For, type Component } from 'solid-js';
 import type { AgentOption, DraftSelection, ModelOption } from '../../shared/models';
+import { ChevronDown } from './icons';
+import { Dropdown } from './dropdown';
 
 type Props = {
   models: ModelOption[];
@@ -12,6 +14,62 @@ function variants(models: ModelOption[], selection: DraftSelection) {
   return models.find((item) => item.providerID === selection.model?.providerID && item.id === selection.model?.modelID)?.variants ?? [];
 }
 
+function DraftSelect(props: {
+  label: string;
+  defaultLabel: string;
+  value: string;
+  options: { label: string; value: string }[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}) {
+  const displayLabel = () => props.options.find(o => o.value === props.value)?.label || props.defaultLabel;
+
+  return (
+    <Dropdown
+      containerClass="draft-dropdown-container"
+      menuClass="draft-dropdown-menu"
+      disabled={props.disabled}
+      trigger={({ toggle, disabled }) => (
+        <button
+          class="draft-dropdown-btn"
+          disabled={disabled}
+          onClick={toggle}
+          title={props.label}
+        >
+          <span class="draft-dropdown-text">{displayLabel()}</span>
+          <ChevronDown size={12} class="draft-dropdown-icon" />
+        </button>
+      )}
+      menu={({ close }) => (
+        <div class="dropdown-list">
+          <button
+            class={`dropdown-item ${props.value === '' ? 'dropdown-item-active' : ''}`}
+            onClick={() => {
+              props.onChange('');
+              close();
+            }}
+          >
+            {props.defaultLabel}
+          </button>
+          <For each={props.options}>
+            {(opt) => (
+              <button
+                class={`dropdown-item ${props.value === opt.value ? 'dropdown-item-active' : ''}`}
+                onClick={() => {
+                  props.onChange(opt.value);
+                  close();
+                }}
+              >
+                {opt.label}
+              </button>
+            )}
+          </For>
+        </div>
+      )}
+    />
+  );
+}
+
 export const DraftControls: Component<Props> = (props) => {
   const models = () =>
     props.models.map((model) => ({
@@ -20,58 +78,45 @@ export const DraftControls: Component<Props> = (props) => {
     }));
 
   return (
-    <div class="draft-controls">
-      <label class="draft-field">
-        <span class="draft-label">Agent</span>
-        <select
-          class="draft-select"
-          value={props.selection.agent ?? ''}
-          onChange={(event) => props.onChange({ ...props.selection, agent: event.currentTarget.value || undefined })}
-        >
-          <option value="">Default</option>
-          <For each={props.agents}>{(agent) => <option value={agent.name}>{agent.name}</option>}</For>
-        </select>
-      </label>
+    <div class="draft-controls-inline">
+      <DraftSelect
+        label="Agent"
+        defaultLabel="Agent"
+        value={props.selection.agent ?? ''}
+        options={props.agents.map(a => ({ label: a.name, value: a.name }))}
+        onChange={(v) => props.onChange({ ...props.selection, agent: v || undefined })}
+      />
 
-      <label class="draft-field">
-        <span class="draft-label">Model</span>
-        <select
-          class="draft-select"
-          value={props.selection.model ? JSON.stringify({ providerID: props.selection.model.providerID, modelID: props.selection.model.modelID }) : ''}
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            let parsedModel = undefined;
-            if (value) {
-              try {
-                parsedModel = JSON.parse(value);
-              } catch (e) {
-                // Ignore parsing errors
-              }
+      <DraftSelect
+        label="Model"
+        defaultLabel="Model"
+        value={props.selection.model ? JSON.stringify({ providerID: props.selection.model.providerID, modelID: props.selection.model.modelID }) : ''}
+        options={models()}
+        onChange={(value) => {
+          let parsedModel = undefined;
+          if (value) {
+            try {
+              parsedModel = JSON.parse(value);
+            } catch (e) {
+              // Ignore parsing errors
             }
-            props.onChange({
-              ...props.selection,
-              model: parsedModel,
-              variant: undefined,
-            });
-          }}
-        >
-          <option value="">Default</option>
-          <For each={models()}>{(item) => <option value={item.value}>{item.label}</option>}</For>
-        </select>
-      </label>
+          }
+          props.onChange({
+            ...props.selection,
+            model: parsedModel,
+            variant: undefined,
+          });
+        }}
+      />
 
-      <label class="draft-field">
-        <span class="draft-label">Variant</span>
-        <select
-          class="draft-select"
-          value={props.selection.variant ?? ''}
-          disabled={variants(props.models, props.selection).length === 0}
-          onChange={(event) => props.onChange({ ...props.selection, variant: event.currentTarget.value || undefined })}
-        >
-          <option value="">Default</option>
-          <For each={variants(props.models, props.selection)}>{(variant) => <option value={variant}>{variant}</option>}</For>
-        </select>
-      </label>
+      <DraftSelect
+        label="Variant"
+        defaultLabel="Default"
+        value={props.selection.variant ?? ''}
+        disabled={variants(props.models, props.selection).length === 0}
+        options={variants(props.models, props.selection).map(v => ({ label: v, value: v }))}
+        onChange={(v) => props.onChange({ ...props.selection, variant: v || undefined })}
+      />
     </div>
   );
 };
