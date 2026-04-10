@@ -1,4 +1,4 @@
-import { ErrorBoundary, For, Show, onCleanup, onMount, createSignal } from 'solid-js';
+import { ErrorBoundary, For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { HostMessage, WebviewMessage } from '../shared/protocol';
 import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState } from '../shared/models';
@@ -9,6 +9,8 @@ import { PermissionCard } from './components/permission-card';
 import { QuestionCard } from './components/question-card';
 import { SidebarHeader } from './components/sidebar-header';
 import { Transcript } from './components/transcript';
+
+const ERROR_DISMISS_MS = 5000;
 
 type VsCodeApi = {
   postMessage: (message: WebviewMessage) => void;
@@ -99,6 +101,9 @@ function cloneChips(chips: ContextChip[]) {
 
 export function App() {
   const [inputText, setInputText] = createSignal('');
+  let errorTimer: ReturnType<typeof setTimeout> | undefined;
+  let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
+  let appBodyRef: HTMLDivElement | undefined;
   
   const [state, setState] = createStore<State>({
     connectionStatus: initial?.connectionStatus ?? 'disconnected',
@@ -137,18 +142,58 @@ export function App() {
 
   const chips = () => cloneChips(state.contextChips);
 
+  const scrollToBottom = () => {
+    if (sessionScrollTimer) {
+      cancelAnimationFrame(sessionScrollTimer);
+      sessionScrollTimer = undefined;
+    }
+
+    sessionScrollTimer = requestAnimationFrame(() => {
+      sessionScrollTimer = undefined;
+      if (!appBodyRef) return;
+      appBodyRef.scrollTop = appBodyRef.scrollHeight;
+    });
+  };
+
+  const clearError = () => {
+    if (errorTimer) {
+      clearTimeout(errorTimer);
+      errorTimer = undefined;
+    }
+    setState('error', undefined);
+    persist({ lastError: undefined });
+  };
+
+  const showError = (message?: string) => {
+    if (errorTimer) {
+      clearTimeout(errorTimer);
+      errorTimer = undefined;
+    }
+
+    setState('error', message);
+    persist({ lastError: message });
+
+    if (!message) return;
+
+    errorTimer = setTimeout(() => {
+      errorTimer = undefined;
+      setState('error', undefined);
+      persist({ lastError: undefined });
+    }, ERROR_DISMISS_MS);
+  };
+
   onMount(() => {
     log(`mount active=${state.activeSessionId ?? '<none>'} sessions=${state.sessions.length}`);
 
     window.addEventListener('error', (event) => {
       console.error(event.error ?? event.message);
-      setState('error', event.message);
+      showError(event.message);
       reportAsync(`window.error ${event.message} ${event.filename}:${event.lineno}:${event.colno}`);
     });
 
     window.addEventListener('unhandledrejection', (event) => {
       console.error(event.reason);
-      setState('error', String(event.reason));
+      showError(String(event.reason));
       reportAsync(`window.unhandledrejection ${String(event.reason)}`);
     });
 
@@ -178,7 +223,7 @@ export function App() {
             return;
           case 'connection.state':
             setState('connectionStatus', message.payload.status);
-            setState('error', message.payload.error);
+            showError(message.payload.error);
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;
           case 'session.snapshot':
@@ -195,13 +240,13 @@ export function App() {
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;
           case 'error':
-            setState('error', message.payload.message);
+            showError(message.payload.message);
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;
         }
       } catch (error) {
         console.error(error);
-        setState('error', error instanceof Error ? error.message : String(error));
+        showError(error instanceof Error ? error.message : String(error));
         reportAsync(`webview message error: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
       }
     };
@@ -212,10 +257,24 @@ export function App() {
     }
     onCleanup(() => {
       hostSubscribers.delete(receive);
+      if (errorTimer) {
+        clearTimeout(errorTimer);
+        errorTimer = undefined;
+      }
+      if (sessionScrollTimer) {
+        cancelAnimationFrame(sessionScrollTimer);
+        sessionScrollTimer = undefined;
+      }
     });
 
     log('send ready');
     post({ type: 'ready' });
+  });
+
+  createEffect(() => {
+    if (!state.activeSessionId) return;
+    void state.sessions;
+    scrollToBottom();
   });
 
   const activeSession = () => state.sessions.find((session) => session.info.id === state.activeSessionId);
@@ -232,10 +291,15 @@ export function App() {
         />
 
         <Show when={state.error}>
-          <div class="error-banner">{state.error}</div>
+          <div class="error-banner">
+            <span class="error-banner-text">{state.error}</span>
+            <button class="error-banner-close" type="button" onClick={clearError} aria-label="Dismiss error">
+              ×
+            </button>
+          </div>
         </Show>
 
-        <div class="app-body">
+        <div class="app-body" ref={appBodyRef}>
           <Transcript
             messages={activeSession()?.messages ?? []}
             onOpenFile={(path) => {
