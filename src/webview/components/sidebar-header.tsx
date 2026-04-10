@@ -1,6 +1,6 @@
 import { Component, For } from 'solid-js';
 import type { DraftOptions, SessionState, SessionStatusDetails } from '../../shared/models';
-import { Plus, ChevronDown, Activity } from './icons';
+import { Plus, ChevronDown, Activity, Archive } from './icons';
 import { Dropdown } from './dropdown';
 
 interface SidebarHeaderProps {
@@ -10,6 +10,7 @@ interface SidebarHeaderProps {
   draft: DraftOptions;
   onNewSession: () => void;
   onSelectSession: (sessionID: string) => void;
+  onRequestArchiveSession: (sessionID: string) => void;
 }
 
 const emptyDetails: SessionStatusDetails = {
@@ -121,16 +122,31 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                   session.info.id === 'empty' ? (
                     <div class="dropdown-item-empty">No sessions yet</div>
                   ) : (
-                    <button
-                      class={`dropdown-item ${session.info.id === props.activeSessionId ? 'dropdown-item-active' : ''}`}
-                      onClick={() => {
-                        close();
-                        props.onSelectSession(session.info.id);
-                      }}
-                    >
-                      <div class="dropdown-item-title">{label(session)}</div>
-                      <div class="dropdown-item-meta">{subtitle(session)}</div>
-                    </button>
+                    <div class={`dropdown-item-row ${session.info.id === props.activeSessionId ? 'dropdown-item-row-active' : ''}`}>
+                      <button
+                        class={`dropdown-item ${session.info.id === props.activeSessionId ? 'dropdown-item-active' : ''}`}
+                        onClick={() => {
+                          close();
+                          props.onSelectSession(session.info.id);
+                        }}
+                      >
+                        <div class="dropdown-item-title">{label(session)}</div>
+                        <div class="dropdown-item-meta">{subtitle(session)}</div>
+                      </button>
+                      <button
+                        class="session-archive-btn"
+                        type="button"
+                        title="Archive chat"
+                        aria-label={`Archive ${label(session)}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          close();
+                          props.onRequestArchiveSession(session.info.id);
+                        }}
+                      >
+                        <Archive size={13} />
+                      </button>
+                    </div>
                   )
                 }
               </For>

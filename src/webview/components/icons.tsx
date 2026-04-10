@@ -104,3 +104,22 @@ export const Activity: Component<IconProps> = (props) => (
     <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
   </svg>
 );
+
+export const Archive: Component<IconProps> = (props) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width={props.size ?? 24}
+    height={props.size ?? 24}
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    {...props}
+  >
+    <rect x="3" y="4" width="18" height="4" rx="1"></rect>
+    <path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"></path>
+    <path d="M10 12h4"></path>
+  </svg>
+);

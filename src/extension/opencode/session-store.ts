@@ -57,6 +57,10 @@ function removeById<T extends { id: string }>(items: readonly T[], id: string) {
   return items.filter((item) => item.id !== id);
 }
 
+function isArchived(info: Session) {
+  return typeof info.time.archived === 'number' && Number.isFinite(info.time.archived);
+}
+
 function toSessionSummary(info: Session): SessionSummary {
   return {
     id: info.id,
@@ -274,6 +278,11 @@ export class SessionStore extends EventEmitter {
   }
 
   upsertSession(info: Session, extras?: { status?: SessionStatus; pendingPermissions?: PermissionRequest[]; pendingQuestions?: QuestionRequest[]; diffs?: SnapshotFileDiff[] }) {
+    if (isArchived(info)) {
+      this.removeSession(info.id);
+      return;
+    }
+
     const current = this.sessions.get(info.id);
     if (current) {
       current.info = info;
@@ -329,6 +338,10 @@ export class SessionStore extends EventEmitter {
     switch (payload.type) {
       case 'session.created':
       case 'session.updated': {
+        if (isArchived(payload.properties.info)) {
+          this.removeSession(payload.properties.info.id);
+          return;
+        }
         this.upsertSession(payload.properties.info);
         return;
       }

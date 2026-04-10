@@ -70,6 +70,7 @@ export type WebviewMessage =
   | { type: 'host.ack'; payload: { messageType: HostMessage['type'] } }
   | { type: 'session.new' }
   | { type: 'session.switch'; payload: { sessionID: string } }
+  | { type: 'session.archive'; payload: { sessionID: string } }
   | { type: 'draft.set'; payload: DraftSelection }
   | { type: 'prompt.send'; payload: SendPromptPayload }
   | { type: 'session.abort'; payload: { sessionID: string } }

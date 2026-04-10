@@ -129,6 +129,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.flushSnapshotPost();
         void this.ensureSessionLoaded(msg.payload.sessionID);
         return;
+      case 'session.archive':
+        await this.archiveSession(msg.payload.sessionID);
+        return;
       case 'draft.set':
         this.draft.setSelection(msg.payload);
         this.postDraft();
@@ -264,6 +267,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.postDraft();
     this.flushSnapshotPost();
     await this.ensureSessionLoaded(info.id);
+  }
+
+  private async archiveSession(sessionID: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    await this.client.archiveSession(sessionID, session.info.directory);
+
+    this.withSuspendedStorePosts(() => {
+      this.store.removeSession(sessionID);
+      if (!this.store.activeSessionId) {
+        const next = this.store.snapshot.sessions[0];
+        if (next) this.store.activeSessionId = next.info.id;
+      }
+      this.hydratedSessions.delete(sessionID);
+    });
+
+    this.syncDraftFromSession();
+    this.postDraft();
+    this.flushSnapshotPost();
+
+    if (this.store.activeSessionId) {
+      void this.ensureSessionLoaded(this.store.activeSessionId);
+    }
   }
 
   private async sendPrompt(text: string, attachments: ContextChip[], draft?: DraftSelection) {

@@ -102,6 +102,7 @@ function cloneChips(chips: ContextChip[]) {
 export function App() {
   const [inputText, setInputText] = createSignal('');
   const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();
+  const [pendingArchiveSessionID, setPendingArchiveSessionID] = createSignal<string | undefined>();
   let errorTimer: ReturnType<typeof setTimeout> | undefined;
   let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
   let appBodyRef: HTMLDivElement | undefined;
@@ -311,6 +312,33 @@ export function App() {
     setPendingRevertMessageID(undefined);
   };
 
+  const requestArchive = (sessionID: string) => {
+    setPendingArchiveSessionID(sessionID);
+  };
+
+  const cancelArchive = () => {
+    setPendingArchiveSessionID(undefined);
+  };
+
+  const confirmArchive = () => {
+    const sessionID = pendingArchiveSessionID();
+    if (!sessionID) return;
+
+    post({ type: 'session.archive', payload: { sessionID } });
+    setPendingArchiveSessionID(undefined);
+  };
+
+  const archiveSessionLabel = () => {
+    const sessionID = pendingArchiveSessionID();
+    if (!sessionID) return 'this chat';
+
+    const session = state.sessions.find((item) => item.info.id === sessionID);
+    if (!session) return 'this chat';
+
+    const title = session.info.title.trim();
+    return title || 'this chat';
+  };
+
   return (
     <ErrorBoundary fallback={(error) => <div class="error-banner">Render error: {String(error)}</div>}>
       <div class="app-shell">
@@ -321,6 +349,7 @@ export function App() {
           draft={state.draft}
           onNewSession={() => post({ type: 'session.new' })}
           onSelectSession={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
+          onRequestArchiveSession={requestArchive}
         />
 
         <Show when={state.error}>
@@ -434,6 +463,34 @@ export function App() {
                 </button>
                 <button class="btn btn-primary btn-small" type="button" onClick={confirmRevert}>
                   Revert
+                </button>
+              </div>
+            </div>
+          </div>
+        </Show>
+
+        <Show when={pendingArchiveSessionID()}>
+          <div class="modal-overlay" role="presentation" onClick={cancelArchive}>
+            <div
+              class="confirm-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="archive-dialog-title"
+              aria-describedby="archive-dialog-description"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div class="card-title" id="archive-dialog-title">
+                Confirm Archive
+              </div>
+              <div class="confirm-dialog-body" id="archive-dialog-description">
+                Archive {archiveSessionLabel()} and remove it from the session list?
+              </div>
+              <div class="confirm-dialog-actions">
+                <button class="btn btn-secondary btn-small" type="button" onClick={cancelArchive}>
+                  Cancel
+                </button>
+                <button class="btn btn-primary btn-small" type="button" onClick={confirmArchive}>
+                  Archive
                 </button>
               </div>
             </div>

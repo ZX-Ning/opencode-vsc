@@ -683,6 +683,18 @@ textarea {
   padding: 4px;
 }
 
+.dropdown-item-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.dropdown-item-row-active {
+  border-radius: 4px;
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
 .dropdown-item {
   display: flex;
   flex-direction: column;
@@ -710,6 +722,33 @@ textarea {
 
 .dropdown-item-active:hover {
   background: var(--vscode-list-activeSelectionBackground);
+}
+
+.session-archive-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.session-archive-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.session-archive-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
 }
 
 .dropdown-item-title {

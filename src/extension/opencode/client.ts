@@ -70,6 +70,17 @@ export class Client {
     return res.data;
   }
 
+  async archiveSession(sessionID: string, directory?: string) {
+    const sdk = this.sdk;
+    if (!sdk) return;
+    this.proc.log(`SDK archiveSession session=${sessionID} directory=${directory ?? '<none>'}`);
+    return sdk.session.update({
+      sessionID,
+      directory,
+      time: { archived: Date.now() },
+    });
+  }
+
   async getMessages(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as MessageRow[];
