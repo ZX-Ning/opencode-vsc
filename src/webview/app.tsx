@@ -101,6 +101,7 @@ function cloneChips(chips: ContextChip[]) {
 
 export function App() {
   const [inputText, setInputText] = createSignal('');
+  const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();
   let errorTimer: ReturnType<typeof setTimeout> | undefined;
   let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
   let appBodyRef: HTMLDivElement | undefined;
@@ -279,6 +280,37 @@ export function App() {
 
   const activeSession = () => state.sessions.find((session) => session.info.id === state.activeSessionId);
 
+  const restoreInputFromMessage = (messageID: string) => {
+    const session = activeSession();
+    if (!session) return;
+
+    const message = session.messages.find((item) => item.info.id === messageID);
+    if (!message || message.info.role !== 'user') return;
+
+    const textPart = message.parts.find((part) => part.type === 'text');
+    if (textPart && 'text' in textPart && typeof textPart.text === 'string') {
+      setInputText(textPart.text);
+    }
+  };
+
+  const requestRevert = (messageID: string) => {
+    setPendingRevertMessageID(messageID);
+  };
+
+  const cancelRevert = () => {
+    setPendingRevertMessageID(undefined);
+  };
+
+  const confirmRevert = () => {
+    const sessionID = state.activeSessionId;
+    const messageID = pendingRevertMessageID();
+    if (!sessionID || !messageID) return;
+
+    restoreInputFromMessage(messageID);
+    post({ type: 'turn.revert', payload: { sessionID, messageID } });
+    setPendingRevertMessageID(undefined);
+  };
+
   return (
     <ErrorBoundary fallback={(error) => <div class="error-banner">Render error: {String(error)}</div>}>
       <div class="app-shell">
@@ -286,6 +318,7 @@ export function App() {
           connectionStatus={state.connectionStatus}
           sessions={state.sessions}
           activeSessionId={state.activeSessionId}
+          draft={state.draft}
           onNewSession={() => post({ type: 'session.new' })}
           onSelectSession={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
         />
@@ -306,22 +339,7 @@ export function App() {
               if (!state.activeSessionId) return;
               post({ type: 'file.open', payload: { sessionID: state.activeSessionId, path } });
             }}
-            onRevert={(messageID) => {
-              if (!state.activeSessionId) return;
-              
-              const session = activeSession();
-              if (session) {
-                const message = session.messages.find(m => m.info.id === messageID);
-                if (message && message.info.role === 'user') {
-                  const textPart = message.parts.find(p => p.type === 'text');
-                  if (textPart && 'text' in textPart && typeof textPart.text === 'string') {
-                    setInputText(textPart.text);
-                  }
-                }
-              }
-
-              post({ type: 'turn.revert', payload: { sessionID: state.activeSessionId, messageID } });
-            }}
+            onRevert={requestRevert}
           />
 
           <div class="cards">
@@ -393,6 +411,34 @@ export function App() {
             }}
           />
         </Composer>
+
+        <Show when={pendingRevertMessageID()}>
+          <div class="modal-overlay" role="presentation" onClick={cancelRevert}>
+            <div
+              class="confirm-dialog"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="revert-dialog-title"
+              aria-describedby="revert-dialog-description"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div class="card-title" id="revert-dialog-title">
+                Confirm Revert
+              </div>
+              <div class="confirm-dialog-body" id="revert-dialog-description">
+                Later messages will be removed from the conversation and this prompt will be copied back into the composer.
+              </div>
+              <div class="confirm-dialog-actions">
+                <button class="btn btn-secondary btn-small" type="button" onClick={cancelRevert}>
+                  Cancel
+                </button>
+                <button class="btn btn-primary btn-small" type="button" onClick={confirmRevert}>
+                  Revert
+                </button>
+              </div>
+            </div>
+          </div>
+        </Show>
       </div>
     </ErrorBoundary>
   );

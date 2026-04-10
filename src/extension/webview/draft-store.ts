@@ -47,6 +47,7 @@ export class DraftStore {
           providerID: provider.id,
           providerName: provider.name,
           variants: model.variants ? Object.keys(model.variants) : [],
+          contextLimit: model.limit.context,
         } satisfies ModelOption)),
       ),
       providerDefaults: this.defaults,

@@ -14,10 +14,10 @@ import type {
 } from '@opencode-ai/sdk/v2/client';
 import type {
   DiffState,
-  DraftSelection,
   MessageSummary,
   PermissionState,
   QuestionState,
+  SessionStatusDetails,
   SessionSnapshotPayload,
   SessionState,
   SessionStatusState,
@@ -110,6 +110,61 @@ function toMessageSummary(message: Message): MessageSummary {
       modelID: assistant.modelID,
     },
     variant: assistant.variant,
+  };
+}
+
+function details(messages: readonly Message[]): SessionStatusDetails {
+  let userMessageCount = 0;
+  let assistantMessageCount = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let reasoningTokens = 0;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
+  let totalTokens = 0;
+  let hasTotalTokens = false;
+  let cost = 0;
+  let hasCost = false;
+
+  for (const message of messages) {
+    if (message.role === 'user') {
+      userMessageCount += 1;
+      continue;
+    }
+
+    assistantMessageCount += 1;
+    const assistant = message as AssistantMessage;
+    inputTokens += assistant.tokens.input;
+    outputTokens += assistant.tokens.output;
+    reasoningTokens += assistant.tokens.reasoning;
+    cacheReadTokens += assistant.tokens.cache.read;
+    cacheWriteTokens += assistant.tokens.cache.write;
+    if (typeof assistant.tokens.total === 'number') {
+      totalTokens += assistant.tokens.total;
+      hasTotalTokens = true;
+    }
+    if (typeof assistant.cost === 'number') {
+      cost += assistant.cost;
+      hasCost = true;
+    }
+  }
+
+  return {
+    messageCount: messages.length,
+    userMessageCount,
+    assistantMessageCount,
+    contextCount: userMessageCount,
+    usage: assistantMessageCount > 0
+      ? {
+          totalTokens: hasTotalTokens ? totalTokens : undefined,
+          inputTokens,
+          outputTokens,
+          reasoningTokens,
+          cacheReadTokens,
+          cacheWriteTokens,
+          cost: hasCost ? cost : undefined,
+        }
+      : undefined,
   };
 }
 
@@ -399,6 +454,7 @@ export class SessionStore extends EventEmitter {
     return {
       info: toSessionSummary(session.info),
       status: toStatus(session.status),
+      details: details(rawMessages),
       messages,
       pendingPermissions: rawPermissions.map(toPermission),
       pendingQuestions: rawQuestions.map(toQuestion),

@@ -35,6 +35,26 @@ export type ModelOption = {
   providerID: string;
   providerName: string;
   variants: string[];
+  contextLimit?: number;
+};
+
+export type SessionUsageState = {
+  totalTokens?: number;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+  cost?: number;
+};
+
+export type SessionStatusDetails = {
+  messageCount: number;
+  userMessageCount: number;
+  assistantMessageCount: number;
+  contextCount: number;
+  contextLimit?: number;
+  usage?: SessionUsageState;
 };
 
 export type DraftOptions = {
@@ -176,6 +196,7 @@ export type TranscriptMessage = {
 export type SessionState = {
   info: SessionSummary;
   status: SessionStatusState;
+  details: SessionStatusDetails;
   messages: TranscriptMessage[];
   pendingPermissions: PermissionState[];
   pendingQuestions: QuestionState[];

@@ -30,6 +30,41 @@ textarea {
   background: var(--vscode-sideBar-background);
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+}
+
+.confirm-dialog {
+  width: min(100%, 320px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 10px;
+  background: var(--vscode-sideBar-background);
+  box-shadow: 0 10px 24px color-mix(in srgb, black 28%, transparent);
+}
+
+.confirm-dialog-body {
+  font-size: 12px;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .app-body {
   flex: 1;
   overflow: auto;
@@ -51,6 +86,68 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.status-dropdown-container {
+  position: relative;
+  display: flex;
+}
+
+.status-dropdown-container > .dropdown-menu.status-dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 220px;
+}
+
+.status-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+}
+
+.status-icon-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  font-size: 12px;
+}
+
+.status-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-panel-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+.status-panel-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-panel-connection {
+  text-transform: capitalize;
 }
 
 .status-dot {
