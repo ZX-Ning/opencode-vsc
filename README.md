@@ -17,21 +17,18 @@ _Dark Theme_
 
 _Light Theme_
 
-
 ## Features
 
 - Interactive chat interface inside VS Code.
-- "Revert to here" functionality to easily backtrack your context.
-- Support for inline code changes, diff visualization, and contextual code discussions.
-- Seamlessly connects to your OpenCode backend server.
-
-## Installation
-
-Run `npm install` and then use `npm run compile` and `npm run build` to build the extension. Press `F5` in VS Code to run the extension in the Extension Development Host.
+- Session switcher for moving between OpenCode chats in the sidebar.
+- Markdown rendering for assistant responses.
+- Clickable file links in chat output to open files directly in VS Code.
 
 ## Requirements
 
-You must have an OpenCode server running. By default, the extension points to `http://localhost:3000`, which can be configured in your settings.
+You must have the OpenCode CLI installed and available on your `PATH`, or configure `OpenCode › Cli: Path` to point to the binary.
+
+On activation, the extension starts a managed local `opencode serve` process automatically. You do not need to start an OpenCode server yourself.
 
 ## Development
 
