@@ -238,6 +238,10 @@ export function App() {
         <div class="app-body">
           <Transcript
             messages={activeSession()?.messages ?? []}
+            onOpenFile={(path) => {
+              if (!state.activeSessionId) return;
+              post({ type: 'file.open', payload: { sessionID: state.activeSessionId, path } });
+            }}
             onRevert={(messageID) => {
               if (!state.activeSessionId) return;
               

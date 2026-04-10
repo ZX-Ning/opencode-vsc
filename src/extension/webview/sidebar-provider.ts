@@ -437,8 +437,48 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private async openFile(sessionID: string, rel: string) {
     const session = this.store.getSession(sessionID);
     if (!session) return;
-    const uri = vscode.Uri.file(path.join(session.info.directory, rel));
-    await vscode.window.showTextDocument(uri, { preview: false });
+
+    const match = rel.match(/^(.*?)(?::(\d+)(?::(\d+))?)?$/);
+    const rawPath = match?.[1] ?? rel;
+    const line = match?.[2];
+    const column = match?.[3];
+    const root = fs.realpathSync(session.info.directory);
+    const normalized = rawPath.replace(/\\/g, '/').replace(/^\.\//, '');
+    if (!normalized) throw new Error('File path is empty');
+    if (normalized.startsWith('../') || path.isAbsolute(normalized)) {
+      throw new Error(`File path is outside the session root: ${rel}`);
+    }
+
+    const resolved = path.resolve(root, normalized);
+    if (!fs.existsSync(resolved)) {
+      throw new Error(`File not found: ${rawPath}`);
+    }
+
+    const target = fs.realpathSync(resolved);
+    const relative = path.relative(root, target);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      throw new Error(`File path is outside the session root: ${rel}`);
+    }
+
+    const stats = fs.statSync(target);
+    if (!stats.isFile()) {
+      throw new Error(`Not a file: ${rawPath}`);
+    }
+
+    const uri = vscode.Uri.file(target);
+    const document = await vscode.workspace.openTextDocument(uri);
+    const selection = line
+      ? new vscode.Selection(
+          Math.max(0, Number(line) - 1),
+          Math.max(0, Number(column ?? '1') - 1),
+          Math.max(0, Number(line) - 1),
+          Math.max(0, Number(column ?? '1') - 1),
+        )
+      : undefined;
+    await vscode.window.showTextDocument(document, {
+      preview: false,
+      selection,
+    });
   }
 
   private async openDiff(sessionID: string, rel: string) {

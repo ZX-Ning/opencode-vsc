@@ -193,6 +193,14 @@ textarea {
   pointer-events: none;
 }
 
+.transcript-file-link {
+  display: inline;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-decoration: underline;
+}
+
 .markdown-body hr {
   border: 0;
   border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
