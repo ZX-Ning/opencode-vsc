@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist/webview',
-    minify: false,
+    sourcemap: false,
     lib: {
       entry: path.resolve(__dirname, 'src/webview/main.tsx'),
       formats: ['iife'],

@@ -1,6 +1,6 @@
 # Opencode VSC (WIP)
 
-A sidebar-first AI coding assistant powered by OpenCode.
+An opencode VS Code extension that works.
 
 ## Note: 
 This Project is heavily vibe-coded, and it's still WIP. 
