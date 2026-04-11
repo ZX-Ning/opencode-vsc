@@ -142,6 +142,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       case 'session.abort':
         await this.abort(msg.payload.sessionID);
         return;
+      case 'session.compact':
+        await this.compact(msg.payload.sessionID);
+        return;
       case 'turn.revert':
         await this.revert(msg.payload.sessionID, msg.payload.messageID);
         return;
@@ -318,6 +321,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const session = this.store.getSession(sessionID);
     if (!session) return;
     await this.client.abortRun(sessionID, session.info.directory);
+  }
+
+  private async compact(sessionID: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    const sessionModel = this.draft.snapshot.selection.model;
+    await this.client.compactSession(sessionID, session.info.directory, sessionModel);
   }
 
   private async revert(sessionID: string, messageID: string) {

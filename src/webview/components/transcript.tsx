@@ -72,10 +72,17 @@ function text(parts: TranscriptPartState[]) {
       if (part.type === 'agent') return `[agent] ${part.name}`;
       if (part.type === 'retry') return `[retry] ${part.message}`;
       if (part.type === 'patch') return `[patch] ${part.files.join(', ')}`;
+      if (part.type === 'compaction') return '[compact]';
       return undefined;
     })
     .filter((value): value is string => !!value?.trim())
     .join('\n\n');
+}
+
+function fallbackLabel(message: TranscriptMessage, running: boolean) {
+  if (running) return 'Working...';
+
+  return message.info.role === 'user' ? 'No input' : 'No output yet';
 }
 
 marked.setOptions({
@@ -227,7 +234,7 @@ export const Transcript: Component<Props> = (props) => {
               <div class="bubble-role">{user ? 'You' : 'OpenCode'}</div>
               <Show
                 when={content}
-                fallback={<div class="bubble-text">{running ? 'Working...' : 'No output yet'}</div>}
+                fallback={<div class="bubble-text">{fallbackLabel(message, running)}</div>}
               >
                 <div
                   class="bubble-text markdown-body"

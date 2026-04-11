@@ -74,6 +74,7 @@ export type WebviewMessage =
   | { type: 'draft.set'; payload: DraftSelection }
   | { type: 'prompt.send'; payload: SendPromptPayload }
   | { type: 'session.abort'; payload: { sessionID: string } }
+  | { type: 'session.compact'; payload: { sessionID: string } }
   | { type: 'turn.revert'; payload: { sessionID: string; messageID: string } }
   | { type: 'permission.approve'; payload: PermissionDecisionPayload }
   | { type: 'permission.deny'; payload: PermissionDecisionPayload }

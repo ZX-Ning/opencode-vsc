@@ -172,6 +172,14 @@ export type PatchPartState = {
   files: string[];
 };
 
+export type CompactionPartState = {
+  id: string;
+  messageID: string;
+  type: 'compaction';
+  auto: boolean;
+  overflow?: boolean;
+};
+
 export type UnknownPartState = {
   id: string;
   messageID: string;
@@ -186,6 +194,7 @@ export type TranscriptPartState =
   | AgentPartState
   | RetryPartState
   | PatchPartState
+  | CompactionPartState
   | UnknownPartState;
 
 export type TranscriptMessage = {

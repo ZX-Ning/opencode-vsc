@@ -1,6 +1,6 @@
 import { Component, For } from 'solid-js';
 import type { DraftOptions, SessionState, SessionStatusDetails } from '../../shared/models';
-import { Plus, ChevronDown, Activity, Archive } from './icons';
+import { Plus, ChevronDown, Archive } from './icons';
 import { Dropdown } from './dropdown';
 
 interface SidebarHeaderProps {
@@ -11,6 +11,7 @@ interface SidebarHeaderProps {
   onNewSession: () => void;
   onSelectSession: (sessionID: string) => void;
   onRequestArchiveSession: (sessionID: string) => void;
+  onCompactSession: (sessionID: string) => void;
 }
 
 const emptyDetails: SessionStatusDetails = {
@@ -72,6 +73,13 @@ function formatCost(value?: number) {
   return `$${value.toFixed(2)}`;
 }
 
+function contextUsagePercent(details: SessionStatusDetails) {
+  if (typeof details.contextLimit !== 'number' || details.contextLimit <= 0) return undefined;
+  const raw = (details.contextCount / details.contextLimit) * 100;
+  if (!Number.isFinite(raw) || raw < 0) return undefined;
+  return Math.min(999, Math.max(0, Math.round(raw)));
+}
+
 export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
   const activeSession = () => props.sessions.find(s => s.info.id === props.activeSessionId);
   const activeLabel = () => activeSession() ? label(activeSession()!) : 'New Chat';
@@ -82,6 +90,10 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
       ...details,
       contextLimit: details.contextLimit ?? selectedContextLimit(session, props.draft),
     };
+  };
+  const contextPercentLabel = () => {
+    const percent = contextUsagePercent(statusDetails());
+    return typeof percent === 'number' ? `${percent}%` : '--';
   };
 
   return (
@@ -161,14 +173,14 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
           menuClass="status-dropdown-menu"
           trigger={(triggerProps) => (
             <button
-              class="status-icon-btn"
+              class="status-summary-btn"
               onClick={triggerProps.toggle}
               aria-expanded={triggerProps['aria-expanded']}
               aria-haspopup={triggerProps['aria-haspopup']}
               ref={triggerProps.ref}
-              title="Session status"
+              title={`Context usage: ${contextPercentLabel()}`}
             >
-              <Activity size={14} />
+              <span class="status-summary-text">{contextPercentLabel()}</span>
             </button>
           )}
           menu={() => {
@@ -229,6 +241,17 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
                     <span class="status-panel-label">Estimated cost</span>
                     <span class="status-panel-value">{formatCost(details.usage?.cost) ?? 'Unavailable'}</span>
                   </div>
+                  <button
+                    class="status-panel-action"
+                    type="button"
+                    disabled={!props.activeSessionId}
+                    onClick={() => {
+                      if (!props.activeSessionId) return;
+                      props.onCompactSession(props.activeSessionId);
+                    }}
+                  >
+                    Compact Context
+                  </button>
                 </div>
               </>
             );

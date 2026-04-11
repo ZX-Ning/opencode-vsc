@@ -350,6 +350,7 @@ export function App() {
           onNewSession={() => post({ type: 'session.new' })}
           onSelectSession={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
           onRequestArchiveSession={requestArchive}
+          onCompactSession={(sessionID) => post({ type: 'session.compact', payload: { sessionID } })}
         />
 
         <Show when={state.error}>

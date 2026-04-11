@@ -208,6 +208,23 @@ export class Client {
     return sdk.session.abort({ sessionID, directory });
   }
 
+  async compactSession(sessionID: string, directory: string, model?: DraftSelection['model']) {
+    const sdk = this.sdk;
+    if (!sdk) return;
+    this.proc.log(`SDK compactSession session=${sessionID} directory=${directory}`);
+
+    if (!model) {
+      throw new Error('No model selected for compacting context');
+    }
+
+    return sdk.session.summarize({
+      sessionID,
+      directory,
+      providerID: model.providerID,
+      modelID: model.modelID,
+    });
+  }
+
   async revertTurn(sessionID: string, directory: string, messageID: string) {
     const sdk = this.sdk;
     if (!sdk) return;

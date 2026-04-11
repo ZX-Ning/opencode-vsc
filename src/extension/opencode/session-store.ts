@@ -101,18 +101,18 @@ function toMessageSummary(message: Message): MessageSummary {
   }
 
   const assistant = message as AssistantMessage;
-  return {
-    id: assistant.id,
-    sessionID: assistant.sessionID,
-    role: 'assistant',
-    createdAt: assistant.time.created,
-    completedAt: assistant.time.completed,
-    parentID: assistant.parentID,
-    agent: assistant.agent,
-    model: {
-      providerID: assistant.providerID,
-      modelID: assistant.modelID,
-    },
+    return {
+      id: assistant.id,
+      sessionID: assistant.sessionID,
+      role: 'assistant',
+      createdAt: assistant.time.created,
+      completedAt: assistant.time.completed,
+      parentID: assistant.parentID,
+      agent: assistant.agent,
+      model: {
+        providerID: assistant.providerID,
+        modelID: assistant.modelID,
+      },
     variant: assistant.variant,
   };
 }
@@ -129,6 +129,8 @@ function details(messages: readonly Message[]): SessionStatusDetails {
   let hasTotalTokens = false;
   let cost = 0;
   let hasCost = false;
+  let latestContextTokens = 0;
+  let latestCompletionTime = -1;
 
   for (const message of messages) {
     if (message.role === 'user') {
@@ -151,13 +153,25 @@ function details(messages: readonly Message[]): SessionStatusDetails {
       cost += assistant.cost;
       hasCost = true;
     }
+
+    const completionTime = assistant.time.completed ?? assistant.time.created;
+    const contextTokens = assistant.tokens.input
+      + assistant.tokens.output
+      + assistant.tokens.reasoning
+      + assistant.tokens.cache.read
+      + assistant.tokens.cache.write;
+
+    if (completionTime >= latestCompletionTime) {
+      latestCompletionTime = completionTime;
+      latestContextTokens = contextTokens;
+    }
   }
 
   return {
     messageCount: messages.length,
     userMessageCount,
     assistantMessageCount,
-    contextCount: userMessageCount,
+    contextCount: latestContextTokens,
     usage: assistantMessageCount > 0
       ? {
           totalTokens: hasTotalTokens ? totalTokens : undefined,
@@ -239,6 +253,14 @@ function toPart(part: Part): TranscriptPartState {
       return { id: part.id, messageID: part.messageID, type: 'retry', message: part.error.data.message };
     case 'patch':
       return { id: part.id, messageID: part.messageID, type: 'patch', files: [...part.files] };
+    case 'compaction':
+      return {
+        id: part.id,
+        messageID: part.messageID,
+        type: 'compaction',
+        auto: part.auto,
+        overflow: part.overflow,
+      };
     default:
       return { id: part.id, messageID: part.messageID, type: 'unknown' };
   }

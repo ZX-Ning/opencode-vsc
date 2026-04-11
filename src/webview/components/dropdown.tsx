@@ -18,6 +18,40 @@ export const Dropdown: Component<{
   let triggerRef: HTMLElement | undefined;
   let menuRef: HTMLDivElement | undefined;
 
+  const focusFirstItem = () => {
+    const items = menuRef?.querySelectorAll('button:not([disabled]), input:not([disabled])');
+    if (items && items.length > 0) {
+      (items[0] as HTMLElement).focus();
+    }
+  };
+
+  const scrollActiveItemIntoView = () => {
+    const activeItem = menuRef?.querySelector('.dropdown-item-active');
+    const list = menuRef?.querySelector('.dropdown-list');
+    if (!(activeItem instanceof HTMLElement) || !(list instanceof HTMLElement)) return;
+
+    const listRect = list.getBoundingClientRect();
+    const itemRect = activeItem.getBoundingClientRect();
+    const padding = 4;
+
+    if (itemRect.top < listRect.top + padding) {
+      list.scrollTop -= listRect.top + padding - itemRect.top;
+      return;
+    }
+
+    if (itemRect.bottom > listRect.bottom - padding) {
+      list.scrollTop += itemRect.bottom - (listRect.bottom - padding);
+    }
+  };
+
+  const open = () => {
+    setIsOpen(true);
+    setTimeout(() => {
+      focusFirstItem();
+      scrollActiveItemIntoView();
+    }, 10);
+  };
+
   const close = () => {
     setIsOpen(false);
     triggerRef?.focus();
@@ -27,13 +61,7 @@ export const Dropdown: Component<{
     if (!isOpen()) {
       if (e.key === 'ArrowDown' && e.target === triggerRef) {
         e.preventDefault();
-        setIsOpen(true);
-        setTimeout(() => {
-          const items = menuRef?.querySelectorAll('button:not([disabled]), input:not([disabled])');
-          if (items && items.length > 0) {
-             (items[0] as HTMLElement).focus();
-          }
-        }, 10);
+        open();
       }
       return;
     }
@@ -70,15 +98,11 @@ export const Dropdown: Component<{
         toggle: () => {
           if (props.disabled) return;
           const wasOpen = isOpen();
-          setIsOpen(!wasOpen);
-          if (!wasOpen) {
-            setTimeout(() => {
-              const items = menuRef?.querySelectorAll('button:not([disabled]), input:not([disabled])');
-              if (items && items.length > 0) {
-                 (items[0] as HTMLElement).focus();
-              }
-            }, 10);
+          if (wasOpen) {
+            setIsOpen(false);
+            return;
           }
+          open();
         },
         disabled: props.disabled,
         'aria-expanded': isOpen(),
