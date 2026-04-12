@@ -344,7 +344,7 @@ export class SessionStore extends EventEmitter {
 
   bootstrap() {
     this.sessions.clear();
-    if (this.active && !this.sessions.has(this.active)) this.active = null;
+    this.active = null;
     this.emit('change');
   }
 

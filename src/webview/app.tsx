@@ -110,6 +110,16 @@ export function App() {
   let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
   let appBodyRef: HTMLDivElement | undefined;
   let appShellRef: HTMLDivElement | undefined;
+  const handleWindowError = (event: ErrorEvent) => {
+    console.error(event.error ?? event.message);
+    showError(event.message);
+    reportAsync(`window.error ${event.message} ${event.filename}:${event.lineno}:${event.colno}`);
+  };
+  const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+    console.error(event.reason);
+    showError(String(event.reason));
+    reportAsync(`window.unhandledrejection ${String(event.reason)}`);
+  };
   
   const [state, setState] = createStore<State>({
     connectionStatus: initial?.connectionStatus ?? 'disconnected',
@@ -193,17 +203,8 @@ export function App() {
   onMount(() => {
     log(`mount active=${state.activeSessionId ?? '<none>'} sessions=${state.sessions.length}`);
 
-    window.addEventListener('error', (event) => {
-      console.error(event.error ?? event.message);
-      showError(event.message);
-      reportAsync(`window.error ${event.message} ${event.filename}:${event.lineno}:${event.colno}`);
-    });
-
-    window.addEventListener('unhandledrejection', (event) => {
-      console.error(event.reason);
-      showError(String(event.reason));
-      reportAsync(`window.unhandledrejection ${String(event.reason)}`);
-    });
+    window.addEventListener('error', handleWindowError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
     const receive = (message: HostMessage) => {
       try {
@@ -265,6 +266,8 @@ export function App() {
     }
     onCleanup(() => {
       hostSubscribers.delete(receive);
+      window.removeEventListener('error', handleWindowError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
       if (errorTimer) {
         clearTimeout(errorTimer);
         errorTimer = undefined;
@@ -449,9 +452,9 @@ export function App() {
           <Show when={(activeSession()?.diffs.length ?? 0) > 0 && state.activeSessionId}>
             <ChangedFiles
               diffs={activeSession()?.diffs ?? []}
-              onOpenFile={(path) => {
+              onOpenDiff={(path) => {
                 if (!state.activeSessionId) return;
-                post({ type: 'file.open', payload: { sessionID: state.activeSessionId, path } });
+                post({ type: 'diff.open', payload: { sessionID: state.activeSessionId, path } });
               }}
             />
           </Show>

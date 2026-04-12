@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { HostMessage, WebviewMessage } from '../../shared/protocol';
-import type { ContextChip, DraftOptions, DraftSelection, SessionState } from '../../shared/models';
+import type { ContextChip, DraftOptions, DraftSelection, SessionState, SessionStatusState } from '../../shared/models';
 import type { Message, Part, PermissionRequest, QuestionRequest, Session, SessionStatus, SnapshotFileDiff, Todo } from '@opencode-ai/sdk/v2/client';
 import { Client } from '../opencode/client';
 import { EventStream } from '../opencode/event-stream';
@@ -201,6 +201,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private async runBootstrap() {
     this.proc.log('Sidebar bootstrap start');
     const directory = this.root();
+    const knownStatus = new Map(
+      this.store.snapshot.sessions.map((session) => [session.info.id, this.toSdkStatus(session.status)] as const),
+    );
 
     if (!directory) {
       this.withSuspendedStorePosts(() => {
@@ -227,7 +230,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this.store.bootstrap();
       this.hydratedSessions.clear();
       for (const session of sessions) {
-        this.store.upsertSession(session);
+        this.store.upsertSession(session, { status: knownStatus.get(session.id) });
       }
 
       const saved = this.context.workspaceState.get<string>('activeSessionId');
@@ -352,7 +355,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     return {
       info,
-      status: { type: 'idle' } as const,
+      status: this.toSdkStatus(this.store.getSession(sessionID)?.status),
       messages: (messages ?? []).map((item) => ({ info: item.info, parts: item.parts })),
       todos: todos ?? [],
       pendingPermissions: (permissions ?? []).filter((item) => item.sessionID === sessionID),
@@ -523,11 +526,30 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async openDiff(sessionID: string, rel: string) {
-    await this.openFile(sessionID, rel);
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    const diff = session.diffs.find((item) => item.file === rel);
+    if (!diff?.patch) {
+      await this.openFile(sessionID, rel);
+      return;
+    }
+
+    const title = `${path.basename(rel)} (OpenCode Diff)`;
+    const before = await vscode.workspace.openTextDocument({
+      content: this.extractOriginalContent(diff.patch),
+    });
+    const after = await vscode.workspace.openTextDocument({
+      content: this.extractModifiedContent(diff.patch),
+    });
+
+    await vscode.commands.executeCommand('vscode.diff', before.uri, after.uri, title, {
+      preview: false,
+    });
   }
 
   private post(message: HostMessage) {
-    if (!this.view || !this.ready && message.type !== 'bootstrap' && message.type !== 'error') return;
+    if (!this.view || (!this.ready && message.type !== 'bootstrap' && message.type !== 'error')) return;
     this.proc.log(`Sidebar post message: ${message.type}`);
     void this.view.webview.postMessage(message).then((ok) => {
       this.proc.log(`Sidebar post delivered=${ok}`);
@@ -546,6 +568,52 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this.proc.log('Sidebar fallback html refresh');
       this.view.webview.html = getWebviewHtml(this.view.webview, this.extensionUri, this.viewState());
     }, 250);
+  }
+
+  private toSdkStatus(status?: SessionStatusState): SessionStatus {
+    if (!status || status.type === 'idle') return { type: 'idle' };
+    if (status.type === 'busy') return { type: 'busy' };
+    return {
+      type: 'retry',
+      attempt: status.attempt,
+      message: status.message,
+      next: status.next,
+    };
+  }
+
+  private extractOriginalContent(patch: string) {
+    return this.applyUnifiedDiff(patch, 'before');
+  }
+
+  private extractModifiedContent(patch: string) {
+    return this.applyUnifiedDiff(patch, 'after');
+  }
+
+  private applyUnifiedDiff(patch: string, side: 'before' | 'after') {
+    const lines = patch.split(/\r?\n/);
+    const output: string[] = [];
+
+    for (const line of lines) {
+      if (line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('@@')) continue;
+      if (line.startsWith('\\ No newline at end of file')) continue;
+
+      if (line.startsWith('+')) {
+        if (side === 'after') output.push(line.slice(1));
+        continue;
+      }
+
+      if (line.startsWith('-')) {
+        if (side === 'before') output.push(line.slice(1));
+        continue;
+      }
+
+      if (line.startsWith(' ')) {
+        output.push(line.slice(1));
+        continue;
+      }
+    }
+
+    return output.join('\n');
   }
 }
 

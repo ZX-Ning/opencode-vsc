@@ -1,4 +1,5 @@
 import * as cp from 'child_process';
+import { randomBytes } from 'crypto';
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as net from 'net';
@@ -134,7 +135,7 @@ export class ProcessManager extends EventEmitter {
   }
 
   private passwordForServer() {
-    return `${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+    return randomBytes(24).toString('base64url');
   }
 
   private async findPort(start: number) {

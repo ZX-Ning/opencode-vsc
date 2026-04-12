@@ -4,7 +4,7 @@ import { ChevronDown } from './icons';
 
 type Props = {
   diffs: DiffState[];
-  onOpenFile: (path: string) => void;
+  onOpenDiff: (path: string) => void;
 };
 
 export const ChangedFiles: Component<Props> = (props) => {
@@ -28,7 +28,7 @@ export const ChangedFiles: Component<Props> = (props) => {
           <For each={props.diffs}>
             {(diff) => (
               <div class="changed-row">
-                <button class="link-button changed-name" onClick={() => props.onOpenFile(diff.file)}>
+                <button class="link-button changed-name" onClick={() => props.onOpenDiff(diff.file)}>
                   {diff.file}
                 </button>
                 <div class="changed-meta">
