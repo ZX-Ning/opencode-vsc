@@ -28,6 +28,7 @@ declare global {
       sessions: SessionState[];
       draft: DraftOptions;
       contextChips: ContextChip[];
+      composerHeight?: number | 'auto';
       error?: string;
     };
   }
@@ -62,6 +63,7 @@ type State = {
   sessions: SessionState[];
   draft: DraftOptions;
   contextChips: ContextChip[];
+  composerHeight: number | 'auto';
   error?: string;
 };
 
@@ -103,9 +105,11 @@ export function App() {
   const [inputText, setInputText] = createSignal('');
   const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();
   const [pendingArchiveSessionID, setPendingArchiveSessionID] = createSignal<string | undefined>();
+  const [isDragging, setIsDragging] = createSignal(false);
   let errorTimer: ReturnType<typeof setTimeout> | undefined;
   let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
   let appBodyRef: HTMLDivElement | undefined;
+  let appShellRef: HTMLDivElement | undefined;
   
   const [state, setState] = createStore<State>({
     connectionStatus: initial?.connectionStatus ?? 'disconnected',
@@ -113,6 +117,7 @@ export function App() {
     sessions: initial?.sessions ?? [],
     draft: initial?.draft ?? emptyDraft,
     contextChips: initialPersisted?.contextChips ?? initial?.contextChips ?? [],
+    composerHeight: initialPersisted?.composerHeight ?? initial?.composerHeight ?? 'auto',
     error: initialPersisted?.lastError ?? initial?.error,
   });
 
@@ -138,6 +143,7 @@ export function App() {
       activeSessionId: patch?.activeSessionId ?? state.activeSessionId,
       draft: patch?.draft ?? cloneDraft(state.draft.selection),
       contextChips: patch?.contextChips ?? cloneChips(state.contextChips),
+      composerHeight: patch?.composerHeight ?? state.composerHeight,
       lastError: patch?.lastError ?? state.error,
     });
   };
@@ -328,6 +334,53 @@ export function App() {
     setPendingArchiveSessionID(undefined);
   };
 
+  const startDragging = (e: MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+
+    const composerContainer = appShellRef?.querySelector('.composer-container') as HTMLElement;
+    if (!composerContainer) return;
+
+    // Temporarily force height to 0 to read the intrinsic minimum height
+    const originalHeight = composerContainer.style.height;
+    const originalTransition = composerContainer.style.transition;
+    composerContainer.style.transition = 'none';
+    composerContainer.style.height = '0px';
+    
+    // Read the height forced by min-height: min-content
+    let absoluteMinHeight = composerContainer.offsetHeight;
+    if (absoluteMinHeight < 60) absoluteMinHeight = 100; // Safe fallback
+    
+    composerContainer.style.height = originalHeight;
+
+    const startY = e.clientY;
+    const startHeight = composerContainer.offsetHeight;
+
+    const maxAvailable = appShellRef?.offsetHeight ?? window.innerHeight;
+    const absoluteMaxHeight = maxAvailable - 100; // Leave space for app-body and resizer
+
+    const onMouseMove = (e: MouseEvent) => {
+      const delta = startY - e.clientY;
+      let newHeight = startHeight + delta;
+      
+      if (newHeight < absoluteMinHeight) newHeight = absoluteMinHeight;
+      if (newHeight > absoluteMaxHeight) newHeight = absoluteMaxHeight;
+
+      setState('composerHeight', newHeight);
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      composerContainer.style.transition = originalTransition;
+      persist({ composerHeight: state.composerHeight });
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
   const archiveSessionLabel = () => {
     const sessionID = pendingArchiveSessionID();
     if (!sessionID) return 'this chat';
@@ -341,7 +394,7 @@ export function App() {
 
   return (
     <ErrorBoundary fallback={(error) => <div class="error-banner">Render error: {String(error)}</div>}>
-      <div class="app-shell">
+      <div class="app-shell" ref={appShellRef}>
         <SidebarHeader
           connectionStatus={state.connectionStatus}
           sessions={state.sessions}
@@ -404,44 +457,48 @@ export function App() {
           </Show>
         </div>
 
-        <Composer
-          text={inputText()}
-          onTextChange={setInputText}
-          onSend={(text) => {
-            post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
-            setState('contextChips', []);
-            persist({ contextChips: [] });
-          }}
-          contextChips={state.contextChips}
-          onRemoveChip={(index) => {
-            setState('contextChips', (chipsState) => {
-              const next = chipsState.filter((_, item) => item !== index);
-              persist({ contextChips: next });
-              return next;
-            });
-          }}
-          onAttachFile={() => post({ type: 'context.attachActiveFile' })}
-          onAttachSelection={() => post({ type: 'context.attachSelection' })}
-          todos={activeSession()?.todos ?? []}
-          isBusy={activeSession()?.status?.type === 'busy'}
-          onInterrupt={() => {
-            if (state.activeSessionId) {
-              post({ type: 'session.abort', payload: { sessionID: state.activeSessionId } });
-            }
-          }}
-        >
-          <DraftControls
-            models={state.draft.models}
-            agents={state.draft.agents}
-            selection={state.draft.selection}
-            onChange={(draft) => {
-              const next = cloneDraft(draft);
-              setState('draft', 'selection', next);
-              persist({ draft: next });
-              post({ type: 'draft.set', payload: next });
+        <div class="resizer" classList={{ dragging: isDragging() }} onMouseDown={startDragging} />
+        
+        <div class="composer-container" style={{ height: state.composerHeight === 'auto' ? 'auto' : `${state.composerHeight}px` }}>
+          <Composer
+            text={inputText()}
+            onTextChange={setInputText}
+            onSend={(text) => {
+              post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
+              setState('contextChips', []);
+              persist({ contextChips: [] });
             }}
-          />
-        </Composer>
+            contextChips={state.contextChips}
+            onRemoveChip={(index) => {
+              setState('contextChips', (chipsState) => {
+                const next = chipsState.filter((_, item) => item !== index);
+                persist({ contextChips: next });
+                return next;
+              });
+            }}
+            onAttachFile={() => post({ type: 'context.attachActiveFile' })}
+            onAttachSelection={() => post({ type: 'context.attachSelection' })}
+            todos={activeSession()?.todos ?? []}
+            isBusy={activeSession()?.status?.type === 'busy'}
+            onInterrupt={() => {
+              if (state.activeSessionId) {
+                post({ type: 'session.abort', payload: { sessionID: state.activeSessionId } });
+              }
+            }}
+          >
+            <DraftControls
+              models={state.draft.models}
+              agents={state.draft.agents}
+              selection={state.draft.selection}
+              onChange={(draft) => {
+                const next = cloneDraft(draft);
+                setState('draft', 'selection', next);
+                persist({ draft: next });
+                post({ type: 'draft.set', payload: next });
+              }}
+            />
+          </Composer>
+        </div>
 
         <Show when={pendingRevertMessageID()}>
           <div class="modal-overlay" role="presentation" onClick={cancelRevert}>

@@ -28,6 +28,7 @@ textarea {
   display: flex;
   flex-direction: column;
   background: var(--vscode-sideBar-background);
+  overflow: hidden;
 }
 
 .modal-overlay {
@@ -72,6 +73,27 @@ textarea {
   flex-direction: column;
   gap: 12px;
   padding-bottom: 8px;
+  min-height: 60px;
+}
+
+.resizer {
+  height: 4px;
+  cursor: ns-resize;
+  background-color: transparent;
+  transition: background-color 0.1s ease;
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.resizer:hover, .resizer.dragging {
+  background-color: var(--vscode-sash-hoverBorder);
+}
+
+.composer-container {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: min-content;
 }
 
 .sidebar-header {
@@ -532,11 +554,13 @@ textarea {
 }
 
 .composer {
+  flex: 1;
   padding: 12px;
   border-top: 1px solid var(--vscode-panel-border);
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-height: 0;
 }
 
 .composer-inner {
@@ -546,13 +570,16 @@ textarea {
   border-radius: 8px;
   background: var(--vscode-input-background);
   overflow: visible;
+  flex: 1;
+  min-height: 0;
 }
 
 .composer-input {
   width: 100%;
+  flex: 1;
   min-height: 60px;
-  max-height: 200px;
-  resize: vertical;
+  max-height: none;
+  resize: none;
   padding: 10px 12px;
   border: none;
   background: transparent;

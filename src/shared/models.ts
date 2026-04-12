@@ -230,6 +230,7 @@ export type PersistedWebviewState = {
   activeSessionId: string | null;
   draft: DraftSelection;
   contextChips: ContextChip[];
+  composerHeight?: number | 'auto';
   lastError?: string;
 };
 
