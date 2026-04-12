@@ -216,6 +216,7 @@ function toQuestion(question: QuestionRequest): QuestionState {
       question: item.question,
       header: item.header,
       multiple: item.multiple,
+      custom: item.custom,
       options: item.options.map((option) => ({
         label: option.label,
         description: option.description,
@@ -232,6 +233,35 @@ function toTodo(todo: Todo): TodoState {
   };
 }
 
+function toQuestionReview(part: Extract<Part, { type: 'tool' }>) {
+  if (part.tool !== 'question') return undefined;
+  if (!("metadata" in part.state) || !part.state.metadata || typeof part.state.metadata !== 'object') return undefined;
+  if (!("answers" in part.state.metadata) || !Array.isArray(part.state.metadata.answers) || part.state.metadata.answers.length === 0) {
+    return undefined;
+  }
+
+  const input = part.state.input;
+  if (!('questions' in input) || !Array.isArray(input.questions)) return undefined;
+
+  const answers = part.state.metadata.answers.map((entry) => {
+    if (!Array.isArray(entry)) return [];
+    return entry.filter((value): value is string => typeof value === 'string');
+  });
+
+  const items = input.questions
+    .map((entry, index) => {
+      if (!entry || typeof entry !== 'object' || !('question' in entry) || typeof entry.question !== 'string') return undefined;
+      return {
+        question: entry.question,
+        answers: answers[index] ?? [],
+      };
+    })
+    .filter((value): value is NonNullable<typeof value> => !!value);
+
+  if (items.length === 0) return undefined;
+  return items;
+}
+
 function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState {
   const status = typeof part.state === 'object' && part.state && 'status' in part.state ? String(part.state.status) : 'unknown';
   const title = typeof part.state === 'object' && part.state && 'title' in part.state && typeof part.state.title === 'string'
@@ -245,6 +275,7 @@ function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState
     tool: part.tool,
     status,
     title,
+    questionReview: toQuestionReview(part),
   };
 }
 

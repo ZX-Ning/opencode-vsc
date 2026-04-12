@@ -93,6 +93,7 @@ export type QuestionItemState = {
   header: string;
   options: QuestionOptionState[];
   multiple?: boolean;
+  custom?: boolean;
 };
 
 export type QuestionState = {
@@ -150,6 +151,10 @@ export type ToolPartState = {
   tool: string;
   status: string;
   title?: string;
+  questionReview?: Array<{
+    question: string;
+    answers: QuestionAnswer;
+  }>;
 };
 
 export type SubtaskPartState = {

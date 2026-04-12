@@ -1,4 +1,4 @@
-import { ErrorBoundary, For, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
+import { ErrorBoundary, For, Index, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { HostMessage, WebviewMessage } from '../shared/protocol';
 import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState } from '../shared/models';
@@ -436,14 +436,14 @@ export function App() {
               )}
             </For>
 
-            <For each={activeSession()?.pendingQuestions ?? []}>
+            <Index each={activeSession()?.pendingQuestions ?? []}>
               {(question) => (
                 <QuestionCard
-                  question={question}
+                  question={question()}
                   onAnswer={(requestID, answers) => post({ type: 'question.answer', payload: { requestID, answers } })}
                 />
               )}
-            </For>
+            </Index>
           </div>
 
           <Show when={(activeSession()?.diffs.length ?? 0) > 0 && state.activeSessionId}>

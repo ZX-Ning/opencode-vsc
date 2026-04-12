@@ -79,6 +79,11 @@ function text(message: TranscriptMessage) {
       }
       if (part.type === 'reasoning') return part.text;
       if (part.type === 'tool') {
+        if (part.tool === 'question' && part.questionReview?.length) {
+          return `**Questions**\n\n${part.questionReview
+            .map((item) => `${item.question}\n${item.answers.join(', ') || '(no answer)'}`)
+            .join('\n\n')}`;
+        }
         return `[tool:${part.tool}] ${part.title ?? part.status}`;
       }
       if (part.type === 'subtask') return `[subtask] ${part.description}`;

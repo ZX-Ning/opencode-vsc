@@ -458,6 +458,11 @@ textarea {
   padding: 6px 10px;
 }
 
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-small {
   padding: 4px 8px;
   font-size: 12px;
@@ -471,6 +476,37 @@ textarea {
 .btn-secondary {
   background: var(--vscode-button-secondaryBackground);
   color: var(--vscode-button-secondaryForeground);
+}
+
+.question-option {
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.question-option-selected {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.question-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.question-custom-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+
+.question-custom-input:focus {
+  border-color: var(--vscode-focusBorder);
 }
 
 .push-right {
