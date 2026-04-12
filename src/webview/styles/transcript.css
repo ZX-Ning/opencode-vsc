@@ -1,0 +1,130 @@
+.transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.bubble-user {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.bubble-assistant {
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+}
+
+.bubble-role {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+  text-transform: uppercase;
+}
+
+.bubble-text {
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.markdown-body > :first-child {
+  margin-top: 0;
+}
+
+.markdown-body > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol,
+.markdown-body pre,
+.markdown-body blockquote,
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  margin: 0 0 10px;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 20px;
+}
+
+.markdown-body li + li {
+  margin-top: 4px;
+}
+
+.markdown-body code {
+  font-family: var(--vscode-editor-font-family, var(--font));
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.markdown-body pre {
+  overflow-x: auto;
+  padding: 10px;
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.markdown-body pre code {
+  display: block;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  white-space: pre;
+}
+
+.markdown-body blockquote {
+  padding-left: 10px;
+  border-left: 3px solid color-mix(in srgb, currentColor 35%, transparent);
+  opacity: 0.9;
+}
+
+.markdown-body a {
+  color: inherit;
+  text-decoration: underline;
+  pointer-events: none;
+}
+
+.transcript-file-link {
+  display: inline;
+  font: inherit;
+  line-height: inherit;
+  vertical-align: baseline;
+  text-decoration: underline;
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent);
+  margin: 10px 0;
+}
+
+.bubble-action {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+  opacity: 0.75;
+}

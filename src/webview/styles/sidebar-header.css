@@ -1,0 +1,210 @@
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-dropdown-container {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+}
+
+.header-title-btn {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--vscode-foreground);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  gap: 6px;
+  max-width: 100%;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+
+.header-title-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.header-title-text {
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to right, black calc(100% - 20px), transparent 100%);
+}
+
+.header-title-icon {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.session-archive-btn {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.session-archive-btn:hover {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.session-archive-btn:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+
+.status-dropdown-container {
+  position: relative;
+  display: flex;
+}
+
+.status-dropdown-container > .dropdown-menu.status-dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 220px;
+}
+
+.status-summary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-summary-btn:hover {
+  background: var(--vscode-list-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.status-summary-btn:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.status-summary-text {
+  white-space: nowrap;
+}
+
+.status-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  font-size: 12px;
+}
+
+.status-panel-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.status-panel-label {
+  color: var(--vscode-descriptionForeground);
+}
+
+.status-panel-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-panel-action {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 6px;
+  background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
+  color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+}
+
+.status-panel-action:hover:not(:disabled) {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+}
+
+.status-panel-action:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.status-panel-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-panel-connection {
+  text-transform: capitalize;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.status-connected {
+  background: var(--vscode-testing-iconPassed);
+}
+
+.status-connecting {
+  background: var(--vscode-testing-iconQueued);
+}
+
+.status-disconnected,
+.status-error {
+  background: var(--vscode-testing-iconFailed);
+}
+
+.status-label {
+  font-size: 12px;
+  opacity: 0.8;
+  text-transform: capitalize;
+}

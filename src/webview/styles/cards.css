@@ -1,0 +1,78 @@
+.cards {
+  padding: 0 12px;
+}
+
+.card {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 8px;
+  background: var(--vscode-editor-background);
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.card-body,
+.question-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.card-meta,
+.question-body {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.card-actions,
+.question-options,
+.composer-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.question-header {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.question-option {
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.question-option-selected {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.question-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.question-custom-input {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 6px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+
+.question-custom-input:focus {
+  border-color: var(--vscode-focusBorder);
+}

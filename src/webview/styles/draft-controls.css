@@ -1,0 +1,115 @@
+.draft-controls-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
+}
+
+.draft-dropdown-container {
+  position: relative;
+  display: flex;
+}
+
+.draft-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  max-width: 140px;
+  transition: background-color 0.1s, border-color 0.1s;
+}
+
+.draft-dropdown-btn:hover:not(:disabled) {
+  background-color: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.draft-dropdown-btn:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.draft-dropdown-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.draft-dropdown-text {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-option-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.draft-option-label-primary,
+.draft-option-label-secondary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draft-option-label-secondary {
+  opacity: 0.7;
+}
+
+.draft-dropdown-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.draft-dropdown-menu {
+  top: auto;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  max-width: 300px;
+}
+
+.draft-dropdown-searchable {
+  min-width: 250px;
+  max-height: 350px;
+}
+
+.draft-dropdown-searchable .dropdown-list {
+  max-height: none;
+}
+
+.dropdown-search-container {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-menu-border, var(--vscode-widget-border));
+  background: var(--vscode-dropdown-background);
+}
+
+.dropdown-search-input {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 2px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  outline: none;
+}
+
+.dropdown-search-input:focus {
+  border-color: var(--vscode-focusBorder);
+}

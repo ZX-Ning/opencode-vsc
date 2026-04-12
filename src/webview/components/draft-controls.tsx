@@ -106,7 +106,7 @@ function DraftOptionLabel(props: { option?: DraftSelectOption; fallback: string 
   const secondary = () => props.option?.secondaryLabel;
 
   return (
-    <span class={`draft-option-label ${secondary() ? 'draft-option-label-rich' : ''}`}>
+    <span class="draft-option-label">
       <span class="draft-option-label-primary">{primary()}</span>
       {secondary() ? <span class="draft-option-label-secondary">{secondary()}</span> : null}
     </span>

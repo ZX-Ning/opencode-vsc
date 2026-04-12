@@ -89,6 +89,7 @@ Main files:
 
 - `src/webview/app.tsx`
 - `src/webview/main.css`
+- `src/webview/styles/*.css`
 - `src/webview/components/sidebar-header.tsx`
 - `src/webview/components/session-list.tsx`
 - `src/webview/components/draft-controls.tsx`
@@ -224,10 +225,11 @@ The current CSS already uses a mobile-like collapse for draft controls below a n
 
 ## Styling Rules
 
-1. Prefer CSS in `src/webview/main.css` unless a change is tightly local.
-2. Reuse existing class patterns instead of inventing many one-off styles.
-3. Keep visual language consistent across cards, buttons, and list items.
-4. Use spacing and typography before adding more borders or color.
+1. Keep `src/webview/main.css` as the entry point and split real styles into focused files under `src/webview/styles`.
+2. Group selectors by app shell, shared primitives, or a specific UI area instead of growing one large stylesheet.
+3. Reuse existing class patterns instead of inventing many one-off styles.
+4. Keep visual language consistent across cards, buttons, and list items.
+5. Use spacing and typography before adding more borders or color.
 
 ## Accessibility Expectations
 

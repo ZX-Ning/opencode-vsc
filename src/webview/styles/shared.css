@@ -1,0 +1,68 @@
+.btn {
+  border: 0;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-secondary {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+}
+
+.btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--vscode-icon-foreground);
+  border: none;
+  cursor: pointer;
+}
+
+.btn-icon:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.btn-icon.btn-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.btn-icon.btn-primary:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.link-button {
+  border: 0;
+  background: transparent;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  padding: 0;
+}
+
+.push-right {
+  margin-left: auto;
+}
