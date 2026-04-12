@@ -240,7 +240,14 @@ function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState
 function toPart(part: Part): TranscriptPartState {
   switch (part.type) {
     case 'text':
-      return { id: part.id, messageID: part.messageID, type: 'text', text: part.text };
+      return {
+        id: part.id,
+        messageID: part.messageID,
+        type: 'text',
+        text: part.text,
+        synthetic: part.synthetic,
+        ignored: part.ignored,
+      };
     case 'reasoning':
       return { id: part.id, messageID: part.messageID, type: 'reasoning', text: part.text };
     case 'tool':

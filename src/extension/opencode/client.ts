@@ -10,6 +10,8 @@ import {
   type Session,
   type SnapshotFileDiff,
 } from '@opencode-ai/sdk/v2/client';
+import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { ProcessManager } from './process-manager';
 import type { ContextChip, DraftSelection } from '../../shared/models';
 
@@ -17,6 +19,23 @@ type MessageRow = {
   info: Message;
   parts: Part[];
 };
+
+function absolutePath(directory: string, chip: ContextChip) {
+  return path.isAbsolute(chip.path) ? chip.path : path.resolve(directory, chip.path);
+}
+
+function sourceText(value = '') {
+  return {
+    value,
+    start: 0,
+    end: value.length,
+  };
+}
+
+function selectionLabel(chip: ContextChip) {
+  if (!chip.range) return path.basename(chip.path);
+  return `${chip.path}#${chip.range.startLine}${chip.range.endLine !== chip.range.startLine ? `-${chip.range.endLine}` : ''}`;
+}
 
 export class Client {
   private sdkValue?: ReturnType<typeof createOpencodeClient>;
@@ -149,39 +168,31 @@ export class Client {
     if (!sdk) return;
     this.proc.log(`SDK sendPrompt session=${sessionID} directory=${directory} attachments=${attachments.length}`);
 
+    // Match OpenCode's own attach-file flow: send file references and let the server-side
+    // Read tool expand text files and selected line ranges.
     const parts = [
       { type: 'text' as const, text },
-      ...attachments.map((chip) => ({
-        type: 'file' as const,
-        mime: 'text/plain',
-        filename: chip.path.split('/').pop(),
-        url: `file://${chip.path.startsWith('/') ? chip.path : `${directory.replace(/[\\/]+$/, '')}/${chip.path}`}`,
-        source: chip.range
-          ? {
-              type: 'symbol' as const,
-              path: chip.path.startsWith('/') ? chip.path : `${directory.replace(/[\\/]+$/, '')}/${chip.path}`,
-              name: chip.path,
-              kind: 13,
-              range: {
-                start: { line: Math.max(0, chip.range.startLine - 1), character: 0 },
-                end: { line: Math.max(0, chip.range.endLine - 1), character: 0 },
-              },
-              text: {
-                value: chip.content ?? '',
-                start: 0,
-                end: chip.content?.length ?? 0,
-              },
-            }
-          : {
-              type: 'file' as const,
-              path: chip.path.startsWith('/') ? chip.path : `${directory.replace(/[\\/]+$/, '')}/${chip.path}`,
-              text: {
-                value: chip.content ?? '',
-                start: 0,
-                end: chip.content?.length ?? 0,
-              },
-            },
-      })),
+      ...attachments.map((chip) => {
+        const filePath = absolutePath(directory, chip);
+        const url = pathToFileURL(filePath);
+
+        if (chip.range) {
+          url.searchParams.set('start', String(chip.range.startLine));
+          url.searchParams.set('end', String(chip.range.endLine));
+        }
+
+        return {
+          type: 'file' as const,
+          mime: 'text/plain',
+          filename: chip.range ? selectionLabel(chip) : path.basename(filePath),
+          url: url.href,
+          source: {
+            type: 'file' as const,
+            path: chip.path,
+            text: sourceText(),
+          },
+        };
+      }),
     ];
 
     try {

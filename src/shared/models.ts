@@ -126,6 +126,8 @@ export type TextPartState = {
   messageID: string;
   type: 'text';
   text: string;
+  synthetic?: boolean;
+  ignored?: boolean;
 };
 
 export type ReasoningPartState = {

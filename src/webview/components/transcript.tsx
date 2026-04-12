@@ -60,10 +60,23 @@ type Props = {
   onRevert: (messageID: string) => void;
 };
 
-function text(parts: TranscriptPartState[]) {
-  return parts
+function visibleSyntheticUserText(text: string) {
+  return text.startsWith('Called the Read tool with the following input:')
+    || text.startsWith('Read tool failed to read ')
+    || text.startsWith('Reading MCP resource:')
+    || text.startsWith('Failed to read MCP resource ');
+}
+
+function text(message: TranscriptMessage) {
+  const isUser = message.info.role === 'user';
+
+  return message.parts
     .map((part) => {
-      if (part.type === 'text') return part.text;
+      if (part.type === 'text') {
+        if (part.ignored) return undefined;
+        if (isUser && part.synthetic && !visibleSyntheticUserText(part.text)) return undefined;
+        return part.text;
+      }
       if (part.type === 'reasoning') return part.text;
       if (part.type === 'tool') {
         return `[tool:${part.tool}] ${part.title ?? part.status}`;
@@ -225,7 +238,7 @@ export const Transcript: Component<Props> = (props) => {
     <div class="transcript">
       <For each={props.messages}>
         {(message) => {
-          const content = text(message.parts);
+          const content = text(message);
           const user = message.info.role === 'user';
           const running = message.info.role === 'assistant' && !message.info.completedAt;
 
