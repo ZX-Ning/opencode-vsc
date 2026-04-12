@@ -1,11 +1,11 @@
-# Opencode VSC (WIP)
+# Opencode VSC
 
 An opencode VS Code extension that works.
 
 ## Note: 
-This Project is heavily vibe-coded, and it's still WIP. 
+This Project is heavily vibe-coded. 
 
-Main model used: GPT-5.4, Gemini-3.1-pro. Agent: OpenCode.
+Main model used: GPT-5.4, Gemini-3.1-pro. Agent: OpenCode, OpenAI Codex.
 
 ## Screenshots
 <img height="800" src="https://github.com/user-attachments/assets/91aa04e4-78ab-497d-9316-f6317edb1c39" />

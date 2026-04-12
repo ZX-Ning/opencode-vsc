@@ -2,7 +2,7 @@
     "name": "opencode-vsc",
     "displayName": "Opencode VSC",
     "description": "An opencode VS Code extension that works.",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "publisher": "ZX-Ning",
     "license": "MIT",
     "engines": {
