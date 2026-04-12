@@ -365,11 +365,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private async loadDraft(directory: string) {
-    const [providers, agents] = await Promise.all([this.client.getProviders(directory), this.client.getAgents(directory)]);
+    const [providers, agents, defaultAgent] = await Promise.all([
+      this.client.getProviders(directory),
+      this.client.getAgents(directory),
+      this.client.getDefaultAgent(directory),
+    ]);
     this.draft.setCatalog({
       providers: providers.providers,
       defaults: providers.defaults,
       agents,
+      defaultAgent,
     });
     this.syncDraftFromSession();
   }

@@ -60,6 +60,12 @@ type Props = {
   onRevert: (messageID: string) => void;
 };
 
+type ContentSegment = {
+  id: string;
+  type: 'markdown' | 'reasoning';
+  content: string;
+};
+
 function visibleSyntheticUserText(text: string) {
   return text.startsWith('Called the Read tool with the following input:')
     || text.startsWith('Read tool failed to read ')
@@ -67,34 +73,68 @@ function visibleSyntheticUserText(text: string) {
     || text.startsWith('Failed to read MCP resource ');
 }
 
-function text(message: TranscriptMessage) {
-  const isUser = message.info.role === 'user';
+function partText(part: TranscriptPartState, isUser: boolean) {
+  if (part.type === 'text') {
+    if (part.ignored) return undefined;
+    if (isUser && part.synthetic && !visibleSyntheticUserText(part.text)) return undefined;
+    return part.text;
+  }
 
-  return message.parts
-    .map((part) => {
-      if (part.type === 'text') {
-        if (part.ignored) return undefined;
-        if (isUser && part.synthetic && !visibleSyntheticUserText(part.text)) return undefined;
-        return part.text;
+  if (part.type === 'tool') {
+    if (part.tool === 'question' && part.questionReview?.length) {
+      return `**Questions**\n\n${part.questionReview
+        .map((item) => `${item.question}\n${item.answers.join(', ') || '(no answer)'}`)
+        .join('\n\n')}`;
+    }
+    return `[tool:${part.tool}] ${part.title ?? part.status}`;
+  }
+
+  if (part.type === 'subtask') return `[subtask] ${part.description}`;
+  if (part.type === 'agent') return `[agent] ${part.name}`;
+  if (part.type === 'retry') return `[retry] ${part.message}`;
+  if (part.type === 'patch') return `[patch] ${part.files.join(', ')}`;
+  if (part.type === 'compaction') return '[compact]';
+  return undefined;
+}
+
+function contentSegments(message: TranscriptMessage) {
+  const isUser = message.info.role === 'user';
+  const segments: ContentSegment[] = [];
+  let markdownParts: string[] = [];
+  let markdownID: string | undefined;
+
+  const flushMarkdown = () => {
+    const content = markdownParts.filter((value) => value.trim()).join('\n\n');
+    if (content) {
+      segments.push({
+        id: markdownID ?? `markdown-${segments.length}`,
+        type: 'markdown',
+        content,
+      });
+    }
+
+    markdownParts = [];
+    markdownID = undefined;
+  };
+
+  for (const part of message.parts) {
+    if (part.type === 'reasoning') {
+      flushMarkdown();
+      if (part.text.trim()) {
+        segments.push({ id: part.id, type: 'reasoning', content: part.text });
       }
-      if (part.type === 'reasoning') return part.text;
-      if (part.type === 'tool') {
-        if (part.tool === 'question' && part.questionReview?.length) {
-          return `**Questions**\n\n${part.questionReview
-            .map((item) => `${item.question}\n${item.answers.join(', ') || '(no answer)'}`)
-            .join('\n\n')}`;
-        }
-        return `[tool:${part.tool}] ${part.title ?? part.status}`;
-      }
-      if (part.type === 'subtask') return `[subtask] ${part.description}`;
-      if (part.type === 'agent') return `[agent] ${part.name}`;
-      if (part.type === 'retry') return `[retry] ${part.message}`;
-      if (part.type === 'patch') return `[patch] ${part.files.join(', ')}`;
-      if (part.type === 'compaction') return '[compact]';
-      return undefined;
-    })
-    .filter((value): value is string => !!value?.trim())
-    .join('\n\n');
+      continue;
+    }
+
+    const content = partText(part, isUser);
+    if (!content?.trim()) continue;
+
+    markdownID ??= part.id;
+    markdownParts.push(content);
+  }
+
+  flushMarkdown();
+  return segments;
 }
 
 function fallbackLabel(message: TranscriptMessage, running: boolean) {
@@ -243,7 +283,7 @@ export const Transcript: Component<Props> = (props) => {
     <div class="transcript">
       <For each={props.messages}>
         {(message) => {
-          const content = text(message);
+          const segments = contentSegments(message);
           const user = message.info.role === 'user';
           const running = message.info.role === 'assistant' && !message.info.completedAt;
 
@@ -251,14 +291,31 @@ export const Transcript: Component<Props> = (props) => {
             <div class={`bubble ${user ? 'bubble-user' : 'bubble-assistant'}`}>
               <div class="bubble-role">{user ? 'You' : 'OpenCode'}</div>
               <Show
-                when={content}
+                when={segments.length > 0}
                 fallback={<div class="bubble-text">{fallbackLabel(message, running)}</div>}
               >
-                <div
-                  class="bubble-text markdown-body"
-                  innerHTML={renderMarkdown(content)}
-                  onClick={(event) => handleFileLinkClick(event, props.onOpenFile)}
-                />
+                <div class="bubble-content">
+                  <For each={segments}>
+                    {(segment) => segment.type === 'reasoning'
+                      ? (
+                        <section class="bubble-thinking">
+                          <div class="bubble-thinking-label">Thinking</div>
+                          <div
+                            class="bubble-text bubble-thinking-text markdown-body"
+                            innerHTML={renderMarkdown(segment.content)}
+                            onClick={(event) => handleFileLinkClick(event, props.onOpenFile)}
+                          />
+                        </section>
+                      )
+                      : (
+                        <div
+                          class="bubble-text markdown-body"
+                          innerHTML={renderMarkdown(segment.content)}
+                          onClick={(event) => handleFileLinkClick(event, props.onOpenFile)}
+                        />
+                      )}
+                  </For>
+                </div>
               </Show>
               <Show when={user}>
                 <button class="bubble-action" onClick={() => props.onRevert(message.info.id)}>

@@ -13,6 +13,8 @@ export const Dropdown: Component<{
   disabled?: boolean;
   menuClass?: string;
   containerClass?: string;
+  initialScroll?: 'active' | 'top';
+  onOpen?: () => void;
 }> = (props) => {
   const [isOpen, setIsOpen] = createSignal(false);
   let triggerRef: HTMLElement | undefined;
@@ -44,10 +46,23 @@ export const Dropdown: Component<{
     }
   };
 
+  const scrollListToTop = () => {
+    const list = menuRef?.querySelector('.dropdown-list');
+    if (list instanceof HTMLElement) {
+      list.scrollTop = 0;
+    }
+  };
+
   const open = () => {
+    props.onOpen?.();
     setIsOpen(true);
     setTimeout(() => {
       focusFirstItem();
+      if (props.initialScroll === 'top') {
+        scrollListToTop();
+        return;
+      }
+
       scrollActiveItemIntoView();
     }, 10);
   };

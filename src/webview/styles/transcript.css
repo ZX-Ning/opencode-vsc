@@ -38,6 +38,35 @@
   overflow-wrap: anywhere;
 }
 
+.bubble-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bubble-thinking {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.bubble-thinking-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+
+.bubble-thinking-text {
+  font-size: 12px;
+  opacity: 0.88;
+}
+
 .markdown-body > :first-child {
   margin-top: 0;
 }

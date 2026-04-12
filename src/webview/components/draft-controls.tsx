@@ -124,6 +124,13 @@ function DraftSelect(props: {
 }) {
   const [searchQuery, setSearchQuery] = createSignal('');
   const selectedOption = () => props.options.find((option) => option.value === props.value);
+  let listRef: HTMLDivElement | undefined;
+
+  const resetListScroll = () => {
+    if (listRef) {
+      listRef.scrollTop = 0;
+    }
+  };
 
   const filteredOptions = () => {
     if (!props.searchable || !searchQuery().trim()) {
@@ -142,14 +149,15 @@ function DraftSelect(props: {
       containerClass="draft-dropdown-container"
       menuClass={`draft-dropdown-menu ${props.searchable ? 'draft-dropdown-searchable' : ''}`}
       disabled={props.disabled}
+      initialScroll={props.searchable ? 'top' : 'active'}
+      onOpen={() => {
+        setSearchQuery('');
+      }}
       trigger={(triggerProps) => (
         <button
           class="draft-dropdown-btn"
           disabled={triggerProps.disabled}
-          onClick={() => {
-            setSearchQuery('');
-            triggerProps.toggle();
-          }}
+          onClick={() => triggerProps.toggle()}
           title={props.label}
           aria-expanded={triggerProps['aria-expanded']}
           aria-haspopup={triggerProps['aria-haspopup']}
@@ -171,12 +179,15 @@ function DraftSelect(props: {
                 placeholder={`Search ${props.label.toLowerCase()}...`}
                 value={searchQuery()}
                 aria-label={`Search ${props.label.toLowerCase()}`}
-                onInput={(e) => setSearchQuery(e.currentTarget.value)}
+                onInput={(e) => {
+                  setSearchQuery(e.currentTarget.value);
+                  resetListScroll();
+                }}
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
           )}
-          <div class="dropdown-list">
+          <div class="dropdown-list" ref={listRef}>
             <button
               class={`dropdown-item ${props.value === '' ? 'dropdown-item-active' : ''}`}
               onClick={() => {

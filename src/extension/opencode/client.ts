@@ -167,6 +167,15 @@ export class Client {
     return res.data ?? [];
   }
 
+  async getDefaultAgent(directory?: string) {
+    const sdk = this.sdk;
+    if (!sdk) return undefined;
+    this.proc.log(`SDK getDefaultAgent directory=${directory ?? '<none>'}`);
+    const res = await sdk.config.get({ directory });
+    this.proc.log(`SDK getDefaultAgent ok agent=${res.data?.default_agent ?? '<none>'}`);
+    return res.data?.default_agent;
+  }
+
   async sendPrompt(
     sessionID: string,
     directory: string,

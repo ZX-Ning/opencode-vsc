@@ -1,7 +1,7 @@
 import { ErrorBoundary, For, Index, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { HostMessage, WebviewMessage } from '../shared/protocol';
-import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState } from '../shared/models';
+import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState, TranscriptPartState } from '../shared/models';
 import { ChangedFiles } from './components/changed-files';
 import { Composer } from './components/composer';
 import { DraftControls } from './components/draft-controls';
@@ -11,6 +11,7 @@ import { SidebarHeader } from './components/sidebar-header';
 import { Transcript } from './components/transcript';
 
 const ERROR_DISMISS_MS = 5000;
+const AUTO_SCROLL_THRESHOLD_PX = 48;
 
 type VsCodeApi = {
   postMessage: (message: WebviewMessage) => void;
@@ -101,6 +102,56 @@ function cloneChips(chips: ContextChip[]) {
   }));
 }
 
+function isNearBottom(element?: HTMLElement) {
+  if (!element) return true;
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX;
+}
+
+function partSignature(part?: TranscriptPartState) {
+  if (!part) return 'none';
+
+  switch (part.type) {
+    case 'text':
+      return `text:${part.id}:${part.text.length}:${part.synthetic ? 1 : 0}:${part.ignored ? 1 : 0}`;
+    case 'reasoning':
+      return `reasoning:${part.id}:${part.text.length}`;
+    case 'tool':
+      return `tool:${part.id}:${part.tool}:${part.status}:${part.title ?? ''}:${part.questionReview?.length ?? 0}`;
+    case 'subtask':
+      return `subtask:${part.id}:${part.description}`;
+    case 'agent':
+      return `agent:${part.id}:${part.name}`;
+    case 'retry':
+      return `retry:${part.id}:${part.message.length}`;
+    case 'patch':
+      return `patch:${part.id}:${part.files.length}`;
+    case 'compaction':
+      return `compaction:${part.id}:${part.auto ? 1 : 0}:${part.overflow ? 1 : 0}`;
+    case 'unknown':
+      return `unknown:${part.id}`;
+  }
+}
+
+function sessionContentSignature(session?: SessionState) {
+  if (!session) return undefined;
+
+  const lastMessage = session.messages[session.messages.length - 1];
+  const lastPart = lastMessage?.parts[lastMessage.parts.length - 1];
+
+  return [
+    session.info.id,
+    session.info.updatedAt,
+    session.messages.length,
+    lastMessage?.info.id ?? '',
+    lastMessage?.parts.length ?? 0,
+    lastMessage?.info.completedAt ?? '',
+    partSignature(lastPart),
+    session.pendingPermissions.length,
+    session.pendingQuestions.length,
+    session.diffs.length,
+  ].join(':');
+}
+
 export function App() {
   const [inputText, setInputText] = createSignal('');
   const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();
@@ -110,6 +161,9 @@ export function App() {
   let sessionScrollTimer: ReturnType<typeof requestAnimationFrame> | undefined;
   let appBodyRef: HTMLDivElement | undefined;
   let appShellRef: HTMLDivElement | undefined;
+  let stickToBottom = true;
+  let previousActiveSessionId: string | null | undefined;
+  let previousActiveSessionSignature: string | undefined;
   const handleWindowError = (event: ErrorEvent) => {
     console.error(event.error ?? event.message);
     showError(event.message);
@@ -170,6 +224,7 @@ export function App() {
       sessionScrollTimer = undefined;
       if (!appBodyRef) return;
       appBodyRef.scrollTop = appBodyRef.scrollHeight;
+      stickToBottom = true;
     });
   };
 
@@ -201,6 +256,7 @@ export function App() {
   };
 
   onMount(() => {
+    stickToBottom = isNearBottom(appBodyRef);
     log(`mount active=${state.activeSessionId ?? '<none>'} sessions=${state.sessions.length}`);
 
     window.addEventListener('error', handleWindowError);
@@ -283,9 +339,26 @@ export function App() {
   });
 
   createEffect(() => {
-    if (!state.activeSessionId) return;
-    void state.sessions;
-    scrollToBottom();
+    const sessionID = state.activeSessionId;
+    const session = sessionID ? state.sessions.find((item) => item.info.id === sessionID) : undefined;
+    const signature = sessionContentSignature(session);
+
+    if (!sessionID || !session || !signature) {
+      previousActiveSessionId = sessionID;
+      previousActiveSessionSignature = signature;
+      return;
+    }
+
+    const sessionChanged = previousActiveSessionId !== sessionID;
+    const firstObservedContent = previousActiveSessionSignature === undefined;
+    const contentChanged = previousActiveSessionSignature !== signature;
+
+    if (sessionChanged || firstObservedContent || (contentChanged && stickToBottom)) {
+      scrollToBottom();
+    }
+
+    previousActiveSessionId = sessionID;
+    previousActiveSessionSignature = signature;
   });
 
   const activeSession = () => state.sessions.find((session) => session.info.id === state.activeSessionId);
@@ -418,7 +491,13 @@ export function App() {
           </div>
         </Show>
 
-        <div class="app-body" ref={appBodyRef}>
+        <div
+          class="app-body"
+          ref={appBodyRef}
+          onScroll={() => {
+            stickToBottom = isNearBottom(appBodyRef);
+          }}
+        >
           <Transcript
             messages={activeSession()?.messages ?? []}
             onOpenFile={(path) => {

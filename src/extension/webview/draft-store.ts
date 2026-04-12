@@ -36,6 +36,7 @@ export class DraftStore {
   private providers: Provider[] = [];
   private defaults: Record<string, string> = {};
   private agents: Agent[] = [];
+  private defaultAgent?: string;
   private selection: DraftSelection = {};
 
   get snapshot(): DraftOptions {
@@ -63,10 +64,11 @@ export class DraftStore {
     };
   }
 
-  setCatalog(input: { providers: Provider[]; defaults: Record<string, string>; agents: Agent[] }) {
+  setCatalog(input: { providers: Provider[]; defaults: Record<string, string>; agents: Agent[]; defaultAgent?: string }) {
     this.providers = input.providers;
     this.defaults = input.defaults;
     this.agents = input.agents.filter((item) => item.mode !== 'subagent' && !item.hidden);
+    this.defaultAgent = input.defaultAgent;
     this.selection = this.normalize(this.selection);
   }
 
@@ -107,8 +109,16 @@ export class DraftStore {
       if (item) return item;
     }
 
-    const item = this.agents.find((agent) => agent.name === 'build');
-    if (item) return item;
+    if (this.defaultAgent) {
+      const item = this.agents.find((agent) => agent.name === this.defaultAgent);
+      if (item) return item;
+    }
+
+    const build = this.agents.find((agent) => agent.name === 'build');
+    if (build) return build;
+
+    const plan = this.agents.find((agent) => agent.name === 'plan');
+    if (plan) return plan;
 
     return this.agents[0];
   }
