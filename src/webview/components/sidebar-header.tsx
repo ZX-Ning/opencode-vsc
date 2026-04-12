@@ -129,7 +129,7 @@ export const SidebarHeader: Component<SidebarHeaderProps> = (props) => {
               </button>
             </div>
             <div class="dropdown-list">
-              <For each={props.sessions.length === 0 ? [{ info: { id: 'empty' }, messages: [], pendingPermissions: [], pendingQuestions: [], diffs: [], status: { type: 'idle' }, details: emptyDetails } as unknown as SessionState] : props.sessions}>
+              <For each={props.sessions.length === 0 ? [{ info: { id: 'empty' }, messages: [], todos: [], pendingPermissions: [], pendingQuestions: [], diffs: [], status: { type: 'idle' }, details: emptyDetails } as unknown as SessionState] : props.sessions}>
                 {(session) =>
                   session.info.id === 'empty' ? (
                     <div class="dropdown-item-empty">No sessions yet</div>

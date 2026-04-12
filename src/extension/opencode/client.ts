@@ -9,6 +9,7 @@ import {
   type QuestionRequest,
   type Session,
   type SnapshotFileDiff,
+  type Todo,
 } from '@opencode-ai/sdk/v2/client';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
@@ -115,6 +116,15 @@ export class Client {
     this.proc.log(`SDK getDiff session=${sessionID} directory=${directory ?? '<none>'} message=${messageID ?? '<none>'}`);
     const res = await sdk.session.diff({ sessionID, directory, messageID });
     this.proc.log(`SDK getDiff ok session=${sessionID} count=${res.data?.length ?? 0}`);
+    return res.data ?? [];
+  }
+
+  async getTodos(sessionID: string, directory?: string) {
+    const sdk = this.sdk;
+    if (!sdk) return [] as Todo[];
+    this.proc.log(`SDK getTodos session=${sessionID} directory=${directory ?? '<none>'}`);
+    const res = await sdk.session.todo({ sessionID, directory });
+    this.proc.log(`SDK getTodos ok session=${sessionID} count=${res.data?.length ?? 0}`);
     return res.data ?? [];
   }
 

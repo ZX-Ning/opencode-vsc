@@ -109,6 +109,12 @@ export type DiffState = {
   status?: 'added' | 'deleted' | 'modified';
 };
 
+export type TodoState = {
+  content: string;
+  status: string;
+  priority: string;
+};
+
 export type MessageSummary = {
   id: string;
   sessionID: string;
@@ -209,6 +215,7 @@ export type SessionState = {
   status: SessionStatusState;
   details: SessionStatusDetails;
   messages: TranscriptMessage[];
+  todos: TodoState[];
   pendingPermissions: PermissionState[];
   pendingQuestions: QuestionState[];
   diffs: DiffState[];

@@ -10,6 +10,7 @@ import type {
   Session,
   SessionStatus,
   SnapshotFileDiff,
+  Todo,
   UserMessage,
 } from '@opencode-ai/sdk/v2/client';
 import type {
@@ -22,6 +23,7 @@ import type {
   SessionState,
   SessionStatusState,
   SessionSummary,
+  TodoState,
   TranscriptMessage,
   TranscriptPartState,
 } from '../../shared/models';
@@ -33,6 +35,7 @@ type Mutable = {
   status: SessionStatus;
   messages: Message[];
   parts: Map<string, Part[]>;
+  todos: Todo[];
   permissions: PermissionRequest[];
   questions: QuestionRequest[];
   diffs: SnapshotFileDiff[];
@@ -221,6 +224,14 @@ function toQuestion(question: QuestionRequest): QuestionState {
   };
 }
 
+function toTodo(todo: Todo): TodoState {
+  return {
+    content: todo.content,
+    status: todo.status,
+    priority: todo.priority,
+  };
+}
+
 function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState {
   const status = typeof part.state === 'object' && part.state && 'status' in part.state ? String(part.state.status) : 'unknown';
   const title = typeof part.state === 'object' && part.state && 'title' in part.state && typeof part.state.title === 'string'
@@ -306,7 +317,7 @@ export class SessionStore extends EventEmitter {
     this.emit('change');
   }
 
-  upsertSession(info: Session, extras?: { status?: SessionStatus; pendingPermissions?: PermissionRequest[]; pendingQuestions?: QuestionRequest[]; diffs?: SnapshotFileDiff[] }) {
+  upsertSession(info: Session, extras?: { status?: SessionStatus; pendingPermissions?: PermissionRequest[]; pendingQuestions?: QuestionRequest[]; diffs?: SnapshotFileDiff[]; todos?: Todo[] }) {
     if (isArchived(info)) {
       this.removeSession(info.id);
       return;
@@ -316,6 +327,7 @@ export class SessionStore extends EventEmitter {
     if (current) {
       current.info = info;
       if (extras?.status) current.status = extras.status;
+      if (extras?.todos) current.todos = [...extras.todos];
       if (extras?.pendingPermissions) current.permissions = sortById(extras.pendingPermissions);
       if (extras?.pendingQuestions) current.questions = sortById(extras.pendingQuestions);
       if (extras?.diffs) current.diffs = [...extras.diffs];
@@ -325,6 +337,7 @@ export class SessionStore extends EventEmitter {
         status: extras?.status ?? idle,
         messages: [],
         parts: new Map(),
+        todos: [...(extras?.todos ?? [])],
         permissions: sortById(extras?.pendingPermissions ?? []),
         questions: sortById(extras?.pendingQuestions ?? []),
         diffs: [...(extras?.diffs ?? [])],
@@ -473,6 +486,13 @@ export class SessionStore extends EventEmitter {
         this.emit('change');
         return;
       }
+      case 'todo.updated': {
+        const session = this.sessions.get(payload.properties.sessionID);
+        if (!session) return;
+        session.todos = [...payload.properties.todos];
+        this.emit('change');
+        return;
+      }
     }
   }
 
@@ -498,6 +518,7 @@ export class SessionStore extends EventEmitter {
       status: toStatus(session.status),
       details: details(rawMessages),
       messages,
+      todos: session.todos.map(toTodo),
       pendingPermissions: rawPermissions.map(toPermission),
       pendingQuestions: rawQuestions.map(toQuestion),
       diffs: session.diffs.map(toDiff),

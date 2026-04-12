@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { HostMessage, WebviewMessage } from '../../shared/protocol';
 import type { ContextChip, DraftOptions, DraftSelection, SessionState } from '../../shared/models';
-import type { Message, Part, PermissionRequest, QuestionRequest, Session, SessionStatus, SnapshotFileDiff } from '@opencode-ai/sdk/v2/client';
+import type { Message, Part, PermissionRequest, QuestionRequest, Session, SessionStatus, SnapshotFileDiff, Todo } from '@opencode-ai/sdk/v2/client';
 import { Client } from '../opencode/client';
 import { EventStream } from '../opencode/event-stream';
 import { ProcessManager } from '../opencode/process-manager';
@@ -339,10 +339,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   private async loadSession(sessionID: string, directory: string): Promise<LoadedSession> {
     this.proc.log(`Sidebar loadSession session=${sessionID} directory=${directory}`);
-    const [info, messages, diffs, permissions, questions] = await Promise.all([
+    const [info, messages, diffs, todos, permissions, questions] = await Promise.all([
       this.client.getSession(sessionID, directory),
       this.client.getMessages(sessionID, directory),
       this.client.getDiff(sessionID, directory),
+      this.client.getTodos(sessionID, directory),
       this.client.getPendingPermissions(directory),
       this.client.getPendingQuestions(directory),
     ]);
@@ -353,6 +354,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       info,
       status: { type: 'idle' } as const,
       messages: (messages ?? []).map((item) => ({ info: item.info, parts: item.parts })),
+      todos: todos ?? [],
       pendingPermissions: (permissions ?? []).filter((item) => item.sessionID === sessionID),
       pendingQuestions: (questions ?? []).filter((item) => item.sessionID === sessionID),
       diffs: diffs ?? [],
@@ -384,6 +386,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.withSuspendedStorePosts(() => {
       this.store.upsertSession(full.info, {
         status: full.status,
+        todos: full.todos,
         pendingPermissions: full.pendingPermissions,
         pendingQuestions: full.pendingQuestions,
         diffs: full.diffs,
@@ -550,6 +553,7 @@ type LoadedSession = {
   info: Session;
   status: SessionStatus;
   messages: Array<{ info: Message; parts: Part[] }>;
+  todos: Todo[];
   pendingPermissions: PermissionRequest[];
   pendingQuestions: QuestionRequest[];
   diffs: SnapshotFileDiff[];

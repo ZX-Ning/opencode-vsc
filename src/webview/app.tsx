@@ -422,6 +422,7 @@ export function App() {
           }}
           onAttachFile={() => post({ type: 'context.attachActiveFile' })}
           onAttachSelection={() => post({ type: 'context.attachSelection' })}
+          todos={activeSession()?.todos ?? []}
           isBusy={activeSession()?.status?.type === 'busy'}
           onInterrupt={() => {
             if (state.activeSessionId) {
