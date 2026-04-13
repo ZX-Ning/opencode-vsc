@@ -88,23 +88,6 @@ export const Send: Component<IconProps> = (props) => (
   </svg>
 );
 
-export const Activity: Component<IconProps> = (props) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width={props.size ?? 24}
-    height={props.size ?? 24}
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    stroke-width="2"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    {...props}
-  >
-    <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
-  </svg>
-);
-
 export const Archive: Component<IconProps> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"

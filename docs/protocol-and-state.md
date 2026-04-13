@@ -56,6 +56,18 @@ DTOs solve this by:
 
 This is the state stored through `acquireVsCodeApi().setState()`.
 
+## Initial HTML State
+
+The inline state injected by `src/extension/webview/html.ts` is not identical to the live `bootstrap` message.
+
+It includes:
+
+- `BootstrapPayload`
+- `contextChips`
+- `error`
+
+The webview then merges that with persisted local state from `getState()`.
+
 ## Host Messages
 
 Defined in `src/shared/protocol.ts` as `HostMessage`.
@@ -68,6 +80,8 @@ Main messages:
 - `draft.state`
 - `context.preview`
 - `error`
+
+The host protocol intentionally stays small. Removed or abandoned message variants should not remain in `HostMessage` unless they are implemented end to end.
 
 ### `bootstrap`
 
@@ -94,15 +108,29 @@ Main messages:
 
 - `ready`
 - `host.ack`
+- `debug.log`
 - `session.new`
 - `session.switch`
+- `session.archive`
 - `draft.set`
+- `context.sync`
 - `prompt.send`
+- `session.abort`
+- `session.compact`
+- `turn.revert`
 - `permission.approve`
 - `permission.deny`
 - `question.answer`
 - `context.attachActiveFile`
 - `context.attachSelection`
+- `file.open`
+- `diff.open`
+
+### `context.sync`
+
+Used when the webview changes its local context chip list after a host-provided attach.
+
+This keeps the host-side mirrored chip state aligned with the visible UI so fallback HTML refreshes and webview re-resolves do not restore removed chips.
 
 ## Ownership Rules
 
@@ -112,12 +140,18 @@ Main messages:
 - normalization of SDK data into DTOs
 - all OpenCode server interaction
 - all VS Code-native side effects
+- mirrored copies of fallback-injected local state when required
 
 ### Webview responsibilities
 
 - render DTOs
 - send user intents
 - persist only local view state
+- sync locally edited mirrored state back to the host when required
+
+Note:
+
+`contextChips` are still edited from the webview, but the host keeps a mirrored copy because the HTML fallback path injects initial state from the host side.
 
 ## Update Strategy
 

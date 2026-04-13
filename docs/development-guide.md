@@ -50,6 +50,8 @@ For message, state, or UI changes verify all of these:
 7. Streaming output does not freeze the sidebar.
 8. Attach active file and attach selection work.
 9. Model, variant, and agent controls still behave correctly.
+10. Archive, compact, revert, and open-diff flows still work.
+11. Removed context chips do not reappear after reloading or reopening the sidebar.
 
 ## Workspace Root Rules
 

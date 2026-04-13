@@ -136,6 +136,19 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.draft.setSelection(msg.payload);
         this.postDraft();
         return;
+      case 'context.sync':
+        this.contextChips = msg.payload.chips.map((chip) => ({
+          type: chip.type,
+          path: chip.path,
+          range: chip.range
+            ? {
+                startLine: chip.range.startLine,
+                endLine: chip.range.endLine,
+              }
+            : undefined,
+          content: chip.content,
+        }));
+        return;
       case 'prompt.send':
         await this.sendPrompt(msg.payload.text, msg.payload.attachments, msg.payload.draft);
         return;

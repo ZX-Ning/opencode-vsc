@@ -46,6 +46,7 @@ In `src/webview/app.tsx`:
 - startup sends `ready`
 - the webview listens for host messages through standard webview messaging
 - local persisted state is restored with `getState()`
+- host-mirrored local state such as `contextChips` is synced back to the host after mount
 
 ## What To Avoid
 
@@ -65,6 +66,14 @@ The extension host should prepare the minimal state the webview needs to render.
 
 The receive path should be small and robust.
 
+### Keep fallback-injected state mirrored when required
+
+This repo still has an HTML refresh fallback for webview compatibility.
+
+If a piece of locally edited state is also injected into the HTML shell, the host mirror must stay aligned so reloads do not restore stale state.
+
+Currently this applies to `contextChips`.
+
 ## Current Practical Notes
 
 This repo currently uses a compatibility fallback when host acknowledgements are missing.
@@ -81,4 +90,5 @@ Always verify:
 2. `bootstrap` still reaches the UI
 3. session switching still works
 4. prompt sending still works during streaming output
-5. the sidebar remains responsive with multiple sessions in the workspace
+5. removed context chips do not reappear after sidebar reload or fallback refresh
+6. the sidebar remains responsive with multiple sessions in the workspace

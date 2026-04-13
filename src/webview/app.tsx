@@ -212,6 +212,15 @@ export function App() {
     });
   };
 
+  const updateContextChips = (next: ContextChip[], syncHost = false) => {
+    const cloned = cloneChips(next);
+    setState('contextChips', cloned);
+    persist({ contextChips: cloned });
+    if (syncHost) {
+      post({ type: 'context.sync', payload: { chips: cloned } });
+    }
+  };
+
   const chips = () => cloneChips(state.contextChips);
 
   const scrollToBottom = () => {
@@ -301,7 +310,7 @@ export function App() {
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;
           case 'context.preview':
-            setState('contextChips', (chipsState) => [...chipsState, message.payload]);
+            updateContextChips([...state.contextChips, message.payload]);
             post({ type: 'host.ack', payload: { messageType: message.type } });
             return;
           case 'error':
@@ -336,6 +345,8 @@ export function App() {
 
     log('send ready');
     post({ type: 'ready' });
+    // Keep the host mirror aligned with persisted local chip state for fallback reloads.
+    post({ type: 'context.sync', payload: { chips: chips() } });
   });
 
   createEffect(() => {
@@ -547,16 +558,12 @@ export function App() {
             onTextChange={setInputText}
             onSend={(text) => {
               post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
-              setState('contextChips', []);
-              persist({ contextChips: [] });
+              updateContextChips([], true);
             }}
             contextChips={state.contextChips}
             onRemoveChip={(index) => {
-              setState('contextChips', (chipsState) => {
-                const next = chipsState.filter((_, item) => item !== index);
-                persist({ contextChips: next });
-                return next;
-              });
+              const next = state.contextChips.filter((_, chipIndex) => chipIndex !== index);
+              updateContextChips(next, true);
             }}
             onAttachFile={() => post({ type: 'context.attachActiveFile' })}
             onAttachSelection={() => post({ type: 'context.attachSelection' })}

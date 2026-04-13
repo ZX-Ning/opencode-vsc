@@ -91,8 +91,8 @@ Main files:
 - `src/webview/main.css`
 - `src/webview/styles/*.css`
 - `src/webview/components/sidebar-header.tsx`
-- `src/webview/components/session-list.tsx`
 - `src/webview/components/draft-controls.tsx`
+- `src/webview/components/dropdown.tsx`
 - `src/webview/components/transcript.tsx`
 - `src/webview/components/composer.tsx`
 - `src/webview/components/changed-files.tsx`
@@ -103,8 +103,8 @@ General layout:
 
 - header at top
 - error banner if needed
-- scrollable body
-- composer anchored at bottom of the column
+- scrollable body with transcript, cards, and changed files
+- resizable composer container anchored at bottom of the column
 
 ## Responsibilities Split
 
@@ -170,9 +170,10 @@ Transcript readability is the most important content concern.
 Prefer:
 
 - distinct user and assistant surfaces
+- clear treatment for reasoning or thinking blocks
 - good whitespace for long responses
 - pre-wrapped text for generated content
-- clear affordance for retry and changed files
+- clear affordance for file links, revert, and changed files
 
 Avoid:
 
@@ -189,6 +190,7 @@ It should:
 - always feel easy to find
 - work well with keyboard input
 - make attachments visible but not dominant
+- keep todo summary, draft controls, and interrupt state legible in narrow widths
 - keep send behavior predictable
 
 ### Permission and question cards

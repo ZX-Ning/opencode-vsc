@@ -528,9 +528,9 @@ export class SessionStore extends EventEmitter {
   }
 
   private serialize(session: Mutable): SessionState {
-    let rawMessages = sortById(session.messages);
-    let rawPermissions = sortById(session.permissions);
-    let rawQuestions = sortById(session.questions);
+    let rawMessages = session.messages;
+    let rawPermissions = session.permissions;
+    let rawQuestions = session.questions;
 
     const revertMsgId = session.info.revert?.messageID;
     if (revertMsgId) {

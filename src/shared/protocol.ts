@@ -5,25 +5,7 @@ export type ConnectionStatePayload = {
   error?: string;
 };
 
-export type SessionPatchPayload =
-  | { type: 'upsert'; session: SessionSnapshotPayload['sessions'][number] }
-  | { type: 'remove'; sessionID: string };
-
 export type ContextPreviewPayload = ContextChip;
-
-export type PermissionRequestPayload = {
-  sessionID: string;
-  permission: SessionSnapshotPayload['sessions'][number]['pendingPermissions'][number];
-};
-
-export type QuestionRequestPayload = {
-  sessionID: string;
-  question: SessionSnapshotPayload['sessions'][number]['pendingQuestions'][number];
-};
-
-export type ThemePayload = {
-  mode: 'light' | 'dark';
-};
 
 export type ErrorPayload = {
   message: string;
@@ -47,11 +29,7 @@ export type HostMessage =
   | { type: 'connection.state'; payload: ConnectionStatePayload }
   | { type: 'session.snapshot'; payload: SessionSnapshotPayload }
   | { type: 'draft.state'; payload: DraftOptions }
-  | { type: 'session.patch'; payload: SessionPatchPayload }
-  | { type: 'permission.requested'; payload: PermissionRequestPayload }
-  | { type: 'question.requested'; payload: QuestionRequestPayload }
   | { type: 'context.preview'; payload: ContextPreviewPayload }
-  | { type: 'theme.changed'; payload: ThemePayload }
   | { type: 'error'; payload: ErrorPayload };
 
 export type PermissionDecisionPayload = {
@@ -72,6 +50,7 @@ export type WebviewMessage =
   | { type: 'session.switch'; payload: { sessionID: string } }
   | { type: 'session.archive'; payload: { sessionID: string } }
   | { type: 'draft.set'; payload: DraftSelection }
+  | { type: 'context.sync'; payload: { chips: ContextChip[] } }
   | { type: 'prompt.send'; payload: SendPromptPayload }
   | { type: 'session.abort'; payload: { sessionID: string } }
   | { type: 'session.compact'; payload: { sessionID: string } }

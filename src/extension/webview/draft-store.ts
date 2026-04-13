@@ -2,12 +2,6 @@ import type { Agent, Provider } from '@opencode-ai/sdk/v2/client';
 import type { SessionState } from '../../shared/models';
 import type { AgentOption, DraftModel, DraftOptions, DraftSelection, ModelOption } from '../../shared/models';
 
-function sameModel(a?: DraftModel, b?: DraftModel) {
-  if (!a && !b) return true;
-  if (!a || !b) return false;
-  return a.providerID === b.providerID && a.modelID === b.modelID;
-}
-
 function parseModel(value?: string) {
   if (!value) return undefined;
   const [providerID, modelID] = value.split('/');
@@ -144,13 +138,5 @@ export class DraftStore {
     const info = provider?.models[model.modelID];
     if (!info?.variants) return [] as string[];
     return Object.keys(info.variants);
-  }
-
-  hasSelection(input: DraftSelection) {
-    return (
-      input.agent === this.selection.agent &&
-      input.variant === this.selection.variant &&
-      sameModel(input.model, this.selection.model)
-    );
   }
 }

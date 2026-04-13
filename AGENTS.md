@@ -17,6 +17,8 @@ Read these documents before making non-trivial changes:
 - [postmortem-webview-debugging](docs/postmortem-webview-debugging.md)
   Pitfalls and mistakes discovered during the long webview debugging process.
 
+`docs/legacy/` is historical context only. Do not treat it as the current implementation contract.
+
 General guidance:
 
 - Keep all OpenCode networking in the extension host.

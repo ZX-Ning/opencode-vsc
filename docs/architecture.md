@@ -57,10 +57,10 @@ Thin integration layer on top of `@opencode-ai/sdk`.
 
 Responsibilities:
 
-- session CRUD
-- prompt send/retry/abort
+- session CRUD and hydration
+- prompt send, abort, compact, and revert
 - permissions and questions
-- providers and agents lookup
+- providers, default agent, and agents lookup
 
 ### `src/extension/opencode/event-stream.ts`
 
@@ -88,6 +88,7 @@ Responsibilities:
 - bootstrap lightweight state
 - lazily hydrate active session details
 - push UI updates to the webview
+- keep fallback HTML state aligned with mirrored webview-local state when needed
 - manage compatibility fallback if host-to-webview acknowledgement is missing
 
 ### `src/extension/webview/draft-store.ts`
@@ -126,10 +127,11 @@ Responsibilities:
 
 1. User sends prompt in webview.
 2. Webview posts `prompt.send` to host.
-3. Host updates optimistic user message in `SessionStore`.
-4. Host calls SDK `promptAsync`.
-5. Event stream delivers session/message updates.
-6. Host coalesces snapshots and posts to webview.
+3. If needed, host creates a session first.
+4. Host forwards the prompt, attachments, and draft selection to the SDK.
+5. The webview clears local context chips, and the host mirror stays aligned for fallback reloads.
+6. Event stream delivers authoritative session/message updates.
+7. Host coalesces snapshots and posts to the webview.
 
 ### Session switch
 
@@ -151,7 +153,7 @@ Host-owned state:
 Webview-owned state:
 
 - persisted local UI selection state via `getState` / `setState`
-- temporary chip removal before send
+- temporary chip edits before send, mirrored back to the host for reload safety
 - transient render state
 
 ## Important Constraints
