@@ -1,5 +1,9 @@
+/*
+ * Provides a small accessible dropdown primitive used by multiple sidebar controls.
+ */
 import { Component, JSX, createSignal, Show } from 'solid-js';
 
+/** Manages trigger focus, keyboard navigation, and overlay dismissal for a dropdown menu. */
 export const Dropdown: Component<{
   trigger: (props: {
     isOpen: boolean;

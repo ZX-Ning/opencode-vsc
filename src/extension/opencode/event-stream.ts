@@ -1,3 +1,6 @@
+/*
+ * Maintains the long-lived global OpenCode event stream and reconnect behavior.
+ */
 import { EventEmitter } from 'events';
 import type { GlobalEvent } from '@opencode-ai/sdk/v2/client';
 import { Client } from './client';
@@ -22,6 +25,7 @@ export class EventStream extends EventEmitter {
     });
   }
 
+  /** Opens the global event stream once the managed server is ready. */
   private async connect() {
     if (this.abort) return;
 
@@ -53,6 +57,7 @@ export class EventStream extends EventEmitter {
     }
   }
 
+  /** Retries the stream after transient failures without hammering the server. */
   private scheduleReconnect() {
     if (this.timer) return;
     this.proc.log('EventStream scheduling reconnect');
@@ -64,6 +69,7 @@ export class EventStream extends EventEmitter {
     }, 1000);
   }
 
+  /** Cancels any active stream work when the managed server stops or the extension disposes. */
   private disconnect() {
     this.proc.log('EventStream disconnect');
     if (this.timer) {

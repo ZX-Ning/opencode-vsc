@@ -1,3 +1,6 @@
+/*
+ * Renders transcript messages, including markdown, reasoning blocks, and clickable file references.
+ */
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { For, Show, type Component } from 'solid-js';
@@ -66,6 +69,7 @@ type ContentSegment = {
   content: string;
 };
 
+/** Filters out synthetic user text that is mostly transport noise rather than useful transcript content. */
 function visibleSyntheticUserText(text: string) {
   return text.startsWith('Called the Read tool with the following input:')
     || text.startsWith('Read tool failed to read ')
@@ -73,6 +77,7 @@ function visibleSyntheticUserText(text: string) {
     || text.startsWith('Failed to read MCP resource ');
 }
 
+/** Converts transcript parts into the human-readable text blocks shown in each bubble. */
 function partText(part: TranscriptPartState, isUser: boolean) {
   if (part.type === 'text') {
     if (part.ignored) return undefined;
@@ -97,6 +102,7 @@ function partText(part: TranscriptPartState, isUser: boolean) {
   return undefined;
 }
 
+/** Groups consecutive markdown parts together while keeping reasoning as separate sections. */
 function contentSegments(message: TranscriptMessage) {
   const isUser = message.info.role === 'user';
   const segments: ContentSegment[] = [];
@@ -137,6 +143,7 @@ function contentSegments(message: TranscriptMessage) {
   return segments;
 }
 
+/** Provides a stable fallback label while a message has no visible renderable parts yet. */
 function fallbackLabel(message: TranscriptMessage, running: boolean) {
   if (running) return 'Working...';
 
@@ -148,6 +155,7 @@ marked.setOptions({
   breaks: true,
 });
 
+/** Removes punctuation that should not become part of a detected file link. */
 function stripTrailingPunctuation(token: string) {
   const candidate = token.replace(/[\]),.;!?}]+$/g, '');
   return {
@@ -156,6 +164,7 @@ function stripTrailingPunctuation(token: string) {
   };
 }
 
+/** Uses conservative heuristics so normal prose is not over-linked as file paths. */
 function isLikelyFileName(name: string, strict: boolean) {
   const lower = name.toLowerCase();
   if (STANDALONE_FILE_NAMES.has(lower)) return true;
@@ -170,6 +179,7 @@ function isLikelyFileName(name: string, strict: boolean) {
   return KNOWN_FILE_EXTENSIONS.has(ext);
 }
 
+/** Normalizes transcript tokens into relative session file references the host can safely open. */
 function normalizeFileReference(token: string) {
   if (!token || token.includes('://')) return undefined;
 
@@ -195,6 +205,7 @@ function normalizeFileReference(token: string) {
   return normalized;
 }
 
+/** Builds a button element so file references can route through the host instead of real hyperlinks. */
 function createFileLink(doc: Document, label: string, path: string) {
   const button = doc.createElement('button');
   button.type = 'button';
@@ -204,6 +215,7 @@ function createFileLink(doc: Document, label: string, path: string) {
   return button;
 }
 
+/** Rewrites plain-text file references inside rendered markdown into host-routed buttons. */
 function linkifyFileReferences(html: string) {
   const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html');
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
@@ -255,6 +267,7 @@ function linkifyFileReferences(html: string) {
   return doc.body.innerHTML;
 }
 
+/** Parses markdown, sanitizes it, and then post-processes the HTML for file links. */
 function renderMarkdown(source: string) {
   const raw = marked.parse(source) as string;
   const safe = DOMPurify.sanitize(raw, {
@@ -266,6 +279,7 @@ function renderMarkdown(source: string) {
   return linkifyFileReferences(safe);
 }
 
+/** Handles delegated clicks on generated file-link buttons inside transcript HTML. */
 function handleFileLinkClick(event: MouseEvent, onOpenFile: (path: string) => void) {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;

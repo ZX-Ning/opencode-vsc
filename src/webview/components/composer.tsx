@@ -1,3 +1,6 @@
+/*
+ * Renders the prompt composer, attachments, todo preview, and send/interrupt controls.
+ */
 import { Component, For, Show, createSignal } from 'solid-js';
 import type { ContextChip, TodoState } from '../../shared/models';
 import { ChevronDown, Paperclip, Send, Square } from './icons';
@@ -17,6 +20,7 @@ interface ComposerProps {
 	children?: import('solid-js').JSX.Element;
 }
 
+/** Turns todo status enums into readable labels for the inline todo panel. */
 function status(value: string) {
 	return value.replace(/_/g, ' ');
 }
@@ -24,6 +28,7 @@ function status(value: string) {
 export const Composer: Component<ComposerProps> = (props) => {
 	const [expanded, setExpanded] = createSignal(false);
 
+	/** Sends the current prompt only when there is non-whitespace content. */
 	const handleSend = () => {
 		if (props.text.trim()) {
 			props.onSend(props.text);
@@ -31,6 +36,7 @@ export const Composer: Component<ComposerProps> = (props) => {
 		}
 	};
 
+	/** Summarizes todo progress so the collapsed preview reflects the current active work item. */
 	const done = () => props.todos.filter((todo) => todo.status === 'completed').length;
 	const active = () => props.todos.find((todo) => todo.status === 'in_progress')
 		?? props.todos.find((todo) => todo.status === 'pending');

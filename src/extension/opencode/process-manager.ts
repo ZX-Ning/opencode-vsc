@@ -1,3 +1,6 @@
+/*
+ * Starts, monitors, and stops the managed `opencode serve` process for the extension host.
+ */
 import * as cp from 'child_process';
 import { randomBytes } from 'crypto';
 import { EventEmitter } from 'events';
@@ -51,6 +54,7 @@ export class ProcessManager extends EventEmitter {
     this.out.appendLine(message);
   }
 
+  /** Resolves the CLI, starts the server, and waits for health before marking it ready. */
   async start() {
     if (this.state === 'starting' || this.state === 'running') return;
 
@@ -109,6 +113,7 @@ export class ProcessManager extends EventEmitter {
     }
   }
 
+  /** Stops the managed server and resets connection state. */
   stop() {
     if (this.proc) {
       this.proc.kill();
@@ -118,12 +123,14 @@ export class ProcessManager extends EventEmitter {
     this.setState('stopped');
   }
 
+  /** Emits a status transition so other host services can react to server lifecycle changes. */
   private setState(next: ProcessStatus) {
     this.out.appendLine(`Process state: ${this.state} -> ${next}`);
     this.state = next;
     this.emit('statusChange', next);
   }
 
+  /** Records a fatal startup/runtime error and tears down the child process. */
   private fail(message: string) {
     this.err = message;
     this.out.appendLine(message);
@@ -134,10 +141,12 @@ export class ProcessManager extends EventEmitter {
     this.setState('error');
   }
 
+  /** Generates a per-process password when managed server auth is enabled. */
   private passwordForServer() {
     return randomBytes(24).toString('base64url');
   }
 
+  /** Scans a small port range so the managed server can bind locally without conflicts. */
   private async findPort(start: number) {
     const open = (port: number) =>
       new Promise<boolean>((resolve) => {
@@ -157,6 +166,7 @@ export class ProcessManager extends EventEmitter {
     return port;
   }
 
+  /** Resolves either an absolute CLI path or a PATH entry from user configuration. */
   private async resolveCliPath(input: string) {
     const expanded = this.expandHome(input.trim());
     const looksAbsolute = path.isAbsolute(expanded) || expanded.includes(path.sep);
@@ -177,12 +187,14 @@ export class ProcessManager extends EventEmitter {
     return found;
   }
 
+  /** Expands a leading `~` so configured CLI paths work across machines. */
   private expandHome(input: string) {
     if (input === '~') return os.homedir();
     if (input.startsWith(`~${path.sep}`)) return path.join(os.homedir(), input.slice(2));
     return input;
   }
 
+  /** Looks up a binary in PATH using the platform's native command. */
   private which(bin: string) {
     return new Promise<string | undefined>((resolve) => {
       const cmd = process.platform === 'win32' ? 'where' : 'which';
@@ -200,6 +212,7 @@ export class ProcessManager extends EventEmitter {
     });
   }
 
+  /** Polls the server health endpoint until startup finishes or times out. */
   private async waitForHealth(timeout = 30_000) {
     const start = Date.now();
     while (Date.now() - start < timeout) {

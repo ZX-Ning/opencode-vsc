@@ -1,3 +1,6 @@
+/*
+ * Wraps the OpenCode SDK with extension-specific logging and request shaping.
+ */
 import {
   createOpencodeClient,
   type Agent,
@@ -21,10 +24,12 @@ type MessageRow = {
   parts: Part[];
 };
 
+/** Resolves context chip paths against the session directory before sending them to the server. */
 function absolutePath(directory: string, chip: ContextChip) {
   return path.isAbsolute(chip.path) ? chip.path : path.resolve(directory, chip.path);
 }
 
+/** Builds the placeholder source range expected by the SDK for attached file references. */
 function sourceText(value = '') {
   return {
     value,
@@ -33,6 +38,7 @@ function sourceText(value = '') {
   };
 }
 
+/** Formats selection chips the same way the OpenCode UI labels attached ranges. */
 function selectionLabel(chip: ContextChip) {
   if (!chip.range) return path.basename(chip.path);
   return `${chip.path}#${chip.range.startLine}${chip.range.endLine !== chip.range.startLine ? `-${chip.range.endLine}` : ''}`;
@@ -48,6 +54,7 @@ export class Client {
     return this.sdk;
   }
 
+  /** Recreates the SDK client whenever the managed server endpoint or auth state changes. */
   private get sdk() {
     const next = `${this.proc.baseUrl ?? ''}:${this.proc.password}`;
     if (this.key !== next) {
@@ -176,6 +183,7 @@ export class Client {
     return res.data?.default_agent;
   }
 
+  /** Sends prompt text plus file references, leaving file expansion to the server-side Read tool. */
   async sendPrompt(
     sessionID: string,
     directory: string,
@@ -255,6 +263,7 @@ export class Client {
     });
   }
 
+  /** Guards revert requests so only user turns can be used as revert anchors. */
   async revertTurn(sessionID: string, directory: string, messageID: string) {
     const sdk = this.sdk;
     if (!sdk) return;

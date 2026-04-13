@@ -1,3 +1,6 @@
+/*
+ * Stores host-side session state and converts raw SDK data into webview-safe DTO snapshots.
+ */
 import { EventEmitter } from 'events';
 import type {
   AgentPart,
@@ -41,10 +44,12 @@ type Mutable = {
   diffs: SnapshotFileDiff[];
 };
 
+/** Keeps DTO output stable by sorting SDK collections before serializing them. */
 function sortById<T extends { id: string }>(items: readonly T[]) {
   return [...items].sort((a, b) => a.id.localeCompare(b.id));
 }
 
+/** Inserts or replaces an item without mutating the original collection. */
 function upsertById<T extends { id: string }>(items: readonly T[], item: T) {
   const next = [...items];
   const index = next.findIndex((value) => value.id === item.id);
@@ -56,14 +61,17 @@ function upsertById<T extends { id: string }>(items: readonly T[], item: T) {
   return next;
 }
 
+/** Removes one item by id while preserving the order of everything else. */
 function removeById<T extends { id: string }>(items: readonly T[], id: string) {
   return items.filter((item) => item.id !== id);
 }
 
+/** Archived sessions are hidden from the sidebar instead of being kept in local state. */
 function isArchived(info: Session) {
   return typeof info.time.archived === 'number' && Number.isFinite(info.time.archived);
 }
 
+/** Reduces the full SDK session object to the summary shown in the sidebar. */
 function toSessionSummary(info: Session): SessionSummary {
   return {
     id: info.id,
@@ -73,6 +81,7 @@ function toSessionSummary(info: Session): SessionSummary {
   };
 }
 
+/** Converts SDK status values into the lightweight protocol shape used by the webview. */
 function toStatus(status: SessionStatus): SessionStatusState {
   if (status.type === 'retry') {
     return {
@@ -86,6 +95,7 @@ function toStatus(status: SessionStatus): SessionStatusState {
   return { type: status.type };
 }
 
+/** Normalizes user and assistant messages into one summary type for rendering. */
 function toMessageSummary(message: Message): MessageSummary {
   if (message.role === 'user') {
     const user = message as UserMessage;
@@ -120,6 +130,7 @@ function toMessageSummary(message: Message): MessageSummary {
   };
 }
 
+/** Aggregates message-level usage into the status summary shown in the header. */
 function details(messages: readonly Message[]): SessionStatusDetails {
   let userMessageCount = 0;
   let assistantMessageCount = 0;
@@ -189,6 +200,7 @@ function details(messages: readonly Message[]): SessionStatusDetails {
   };
 }
 
+/** Keeps diff payloads limited to the fields the webview actually renders. */
 function toDiff(diff: SnapshotFileDiff): DiffState {
   return {
     file: diff.file,
@@ -199,6 +211,7 @@ function toDiff(diff: SnapshotFileDiff): DiffState {
   };
 }
 
+/** Copies permission requests into plain JSON-safe objects. */
 function toPermission(permission: PermissionRequest): PermissionState {
   return {
     id: permission.id,
@@ -208,6 +221,7 @@ function toPermission(permission: PermissionRequest): PermissionState {
   };
 }
 
+/** Copies question requests into plain JSON-safe objects for the webview. */
 function toQuestion(question: QuestionRequest): QuestionState {
   return {
     id: question.id,
@@ -225,6 +239,7 @@ function toQuestion(question: QuestionRequest): QuestionState {
   };
 }
 
+/** Narrows todo items to the small UI-facing payload used in the composer. */
 function toTodo(todo: Todo): TodoState {
   return {
     content: todo.content,
@@ -233,6 +248,7 @@ function toTodo(todo: Todo): TodoState {
   };
 }
 
+/** Extracts answered question summaries from the SDK's question tool metadata when present. */
 function toQuestionReview(part: Extract<Part, { type: 'tool' }>) {
   if (part.tool !== 'question') return undefined;
   if (!("metadata" in part.state) || !part.state.metadata || typeof part.state.metadata !== 'object') return undefined;
@@ -262,6 +278,7 @@ function toQuestionReview(part: Extract<Part, { type: 'tool' }>) {
   return items;
 }
 
+/** Flattens tool parts into a stable render shape and preserves question answers for review. */
 function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState {
   const status = typeof part.state === 'object' && part.state && 'status' in part.state ? String(part.state.status) : 'unknown';
   const title = typeof part.state === 'object' && part.state && 'title' in part.state && typeof part.state.title === 'string'
@@ -279,6 +296,7 @@ function toToolState(part: Extract<Part, { type: 'tool' }>): TranscriptPartState
   };
 }
 
+/** Converts raw SDK parts into the discriminated union consumed by the transcript UI. */
 function toPart(part: Part): TranscriptPartState {
   switch (part.type) {
     case 'text':
@@ -328,6 +346,7 @@ export class SessionStore extends EventEmitter {
     this.emit('change');
   }
 
+  /** Returns the complete webview-safe snapshot, ordered by most recently updated session. */
   get snapshot(): SessionSnapshotPayload {
     return {
       activeSessionId: this.active,
@@ -342,12 +361,14 @@ export class SessionStore extends EventEmitter {
     return session ? this.serialize(session) : undefined;
   }
 
+  /** Clears all cached host state before a fresh bootstrap from the server. */
   bootstrap() {
     this.sessions.clear();
     this.active = null;
     this.emit('change');
   }
 
+  /** Creates or updates one session while preserving any hydrated extras we already loaded. */
   upsertSession(info: Session, extras?: { status?: SessionStatus; pendingPermissions?: PermissionRequest[]; pendingQuestions?: QuestionRequest[]; diffs?: SnapshotFileDiff[]; todos?: Todo[] }) {
     if (isArchived(info)) {
       this.removeSession(info.id);
@@ -377,6 +398,7 @@ export class SessionStore extends EventEmitter {
     this.emit('change');
   }
 
+  /** Replaces the full hydrated transcript for a session after an explicit load. */
   setMessages(sessionID: string, rows: Array<{ info: Message; parts: Part[] }>) {
     const session = this.sessions.get(sessionID);
     if (!session) return;
@@ -406,6 +428,7 @@ export class SessionStore extends EventEmitter {
     this.emit('change');
   }
 
+  /** Applies one incoming global event to the local source of truth. */
   handleEvent(event: GlobalEvent) {
     const payload = event.payload;
     switch (payload.type) {
@@ -527,6 +550,7 @@ export class SessionStore extends EventEmitter {
     }
   }
 
+  /** Serializes one session and hides any content that lives past a recorded revert point. */
   private serialize(session: Mutable): SessionState {
     let rawMessages = session.messages;
     let rawPermissions = session.permissions;

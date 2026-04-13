@@ -1,3 +1,6 @@
+/*
+ * Renders the sidebar header, including session switching and usage/status summaries.
+ */
 import { Component, For } from 'solid-js';
 import type { DraftOptions, SessionState, SessionStatusDetails } from '../../shared/models';
 import { Plus, ChevronDown, Archive } from './icons';
@@ -21,6 +24,7 @@ const emptyDetails: SessionStatusDetails = {
   contextCount: 0,
 };
 
+/** Falls back from the stored title to the first user prompt so new chats still have labels. */
 function label(session: SessionState) {
   const title = typeof session.info.title === 'string' ? session.info.title.trim() : '';
   if (title) return title;
@@ -32,6 +36,7 @@ function label(session: SessionState) {
   return 'New Chat';
 }
 
+/** Shows runtime status for active sessions and a timestamp for idle ones. */
 function subtitle(session: SessionState) {
   if (session.status?.type === 'busy') return 'Working';
   if (session.status?.type === 'retry') return `Retry ${session.status.attempt}`;
@@ -45,6 +50,7 @@ function subtitle(session: SessionState) {
   });
 }
 
+/** Finds the latest user-selected model so context usage can reflect what actually ran. */
 function latestUserModel(session?: SessionState) {
   if (!session) return undefined;
   for (let index = session.messages.length - 1; index >= 0; index -= 1) {
@@ -54,6 +60,7 @@ function latestUserModel(session?: SessionState) {
   return undefined;
 }
 
+/** Resolves the context limit from either the latest user turn or the current draft selection. */
 function selectedContextLimit(session: SessionState | undefined, draft: DraftOptions) {
   const model = latestUserModel(session) ?? draft.selection.model;
   if (!model) return undefined;
@@ -61,11 +68,13 @@ function selectedContextLimit(session: SessionState | undefined, draft: DraftOpt
   return draft.models.find((item) => item.providerID === model.providerID && item.id === model.modelID)?.contextLimit;
 }
 
+/** Formats counters for compact display in the status panel. */
 function formatNumber(value?: number) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   return new Intl.NumberFormat().format(Math.round(value));
 }
 
+/** Formats estimated cost with more precision for tiny non-zero values. */
 function formatCost(value?: number) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
   if (value === 0) return '$0.00';
@@ -73,6 +82,7 @@ function formatCost(value?: number) {
   return `$${value.toFixed(2)}`;
 }
 
+/** Converts raw context usage into a bounded percentage for the compact header badge. */
 function contextUsagePercent(details: SessionStatusDetails) {
   if (typeof details.contextLimit !== 'number' || details.contextLimit <= 0) return undefined;
   const raw = (details.contextCount / details.contextLimit) * 100;

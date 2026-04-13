@@ -1,3 +1,6 @@
+/*
+ * Defines the typed message protocol exchanged between the extension host and webview.
+ */
 import type { ConnectionStatus, ContextChip, DraftOptions, DraftSelection, QuestionAnswerState, SessionSnapshotPayload } from './models';
 
 export type ConnectionStatePayload = {

@@ -1,3 +1,6 @@
+/*
+ * Renders pending question prompts and collects structured answers for the host.
+ */
 import { For, Show, createEffect, createMemo, createSignal, type Component } from 'solid-js';
 import type { QuestionAnswerState, QuestionItemState, QuestionState } from '../../shared/models';
 
@@ -19,6 +22,7 @@ export const QuestionCard: Component<Props> = (props) => {
 
   const canSubmit = createMemo(() => items().every((_, index) => answersFor(index).length > 0));
 
+  /** Resets local answer state whenever the host delivers a different question request. */
   createEffect(() => {
     const nextQuestionID = props.question.id;
     const nextQuestionCount = props.question.questions.length;
@@ -31,14 +35,17 @@ export const QuestionCard: Component<Props> = (props) => {
     setCustomText(items().map(() => ''));
   });
 
+  /** Treats custom answers as opt-out only when the protocol explicitly disables them. */
   function allowsCustom(item: QuestionItemState) {
     return item.custom !== false;
-  }
+}
 
+  /** Removes empty and duplicate answers before they are posted back to the host. */
   function unique(values: string[]) {
     return [...new Set(values.filter((value) => value.trim()))];
-  }
+}
 
+  /** Merges selected options and custom text into the final answer payload for one question. */
   function answersFor(index: number) {
     const item = items()[index];
     const selected = selectedOptions()[index] ?? [];
@@ -50,12 +57,14 @@ export const QuestionCard: Component<Props> = (props) => {
     }
 
     return unique([...selected, custom]);
-  }
+}
 
+  /** Defers focus until after the custom textarea is mounted. */
   function focusCustom(index: number) {
     requestAnimationFrame(() => customRefs[index]?.focus());
-  }
+}
 
+  /** Applies single-select or multi-select behavior for one question option. */
   function toggleOption(questionIndex: number, label: string) {
     const item = items()[questionIndex];
     setSelectedOptions((current) => {
@@ -80,8 +89,9 @@ export const QuestionCard: Component<Props> = (props) => {
         return next;
       });
     }
-  }
+}
 
+  /** Toggles the custom answer input while keeping single-select answers mutually exclusive. */
   function toggleCustom(questionIndex: number) {
     const item = items()[questionIndex];
     if (!allowsCustom(item) || item.options.length === 0) return;
@@ -112,12 +122,13 @@ export const QuestionCard: Component<Props> = (props) => {
       next[questionIndex] = value;
       return next;
     });
-  }
+}
 
+  /** Packages all per-question answers into the protocol shape expected by the host. */
   function submit() {
     const answers: QuestionAnswerState = items().map((_, index) => answersFor(index));
     props.onAnswer(props.question.id, answers);
-  }
+}
 
   return (
     <div class="card">

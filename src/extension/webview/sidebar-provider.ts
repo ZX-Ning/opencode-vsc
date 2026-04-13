@@ -1,3 +1,6 @@
+/*
+ * Owns the sidebar webview, bridges host and webview messages, and lazily hydrates session data.
+ */
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
@@ -52,6 +55,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  /** Initializes each resolved sidebar instance and rebinds view-local listeners. */
   resolveWebviewView(
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext<unknown>,
@@ -104,6 +108,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.proc.log(`Sidebar resolve restoredState=${context.state ? 'yes' : 'no'}`);
   }
 
+  /** Dispatches webview messages into host-side actions and state updates. */
   private async handle(msg: WebviewMessage) {
     switch (msg.type) {
       case 'ready':
@@ -201,6 +206,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   private bootstrapPromise?: Promise<void>;
 
+  /** Deduplicates concurrent bootstrap attempts triggered by ready/status changes. */
   private bootstrap() {
     if (this.bootstrapPromise) return this.bootstrapPromise;
 
@@ -211,6 +217,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     return this.bootstrapPromise;
   }
 
+  /** Reloads lightweight session lists, restores draft state, and hydrates the active session on demand. */
   private async runBootstrap() {
     this.proc.log('Sidebar bootstrap start');
     const directory = this.root();
@@ -266,6 +273,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Creates a new session in the current workspace and switches the sidebar to it. */
   private async createSession() {
     const directory = this.root();
     if (!directory) {
@@ -288,6 +296,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     await this.ensureSessionLoaded(info.id);
   }
 
+  /** Archives a session, updates local state immediately, and chooses the next active session. */
   private async archiveSession(sessionID: string) {
     const session = this.store.getSession(sessionID);
     if (!session) return;
@@ -312,6 +321,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Creates a session if needed, sends the prompt, and clears attached context chips afterward. */
   private async sendPrompt(text: string, attachments: ContextChip[], draft?: DraftSelection) {
     if (!text.trim()) return;
     this.proc.log(`Sidebar sendPrompt chars=${text.length} attachments=${attachments.length}`);
@@ -353,6 +363,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     await this.client.revertTurn(sessionID, session.info.directory, messageID);
   }
 
+  /** Hydrates the full server-side state needed to render a session transcript. */
   private async loadSession(sessionID: string, directory: string): Promise<LoadedSession> {
     this.proc.log(`Sidebar loadSession session=${sessionID} directory=${directory}`);
     const [info, messages, diffs, todos, permissions, questions] = await Promise.all([
@@ -377,6 +388,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
   }
 
+  /** Loads provider and agent catalog data before restoring the current draft selection. */
   private async loadDraft(directory: string) {
     const [providers, agents, defaultAgent] = await Promise.all([
       this.client.getProviders(directory),
@@ -392,12 +404,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.syncDraftFromSession();
   }
 
+  /** Rebuilds the draft selection from the currently active session, if one exists. */
   private syncDraftFromSession() {
     const sessionID = this.store.activeSessionId;
     const session = sessionID ? this.store.getSession(sessionID) : undefined;
     this.draft.restore(session);
   }
 
+  /** Lazily fetches heavy per-session data the first time a session becomes active. */
   private async ensureSessionLoaded(sessionID: string) {
     if (this.hydratedSessions.has(sessionID)) return;
     const session = this.store.getSession(sessionID);
@@ -423,6 +437,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.flushSnapshotPost();
   }
 
+  /** Maps process state into the smaller connection enum exposed to the webview. */
   private connectionStatus() {
     if (this.proc.status === 'running') return 'connected' as const;
     if (this.proc.status === 'starting') return 'connecting' as const;
@@ -430,6 +445,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     return 'disconnected' as const;
   }
 
+  /** Posts the latest connection state so the webview can render startup and error transitions. */
   private postConnection() {
     this.error = this.proc.error ?? undefined;
     this.post({
@@ -445,6 +461,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'draft.state', payload: this.draft.snapshot });
   }
 
+  /** Coalesces frequent store updates into a smaller stream of snapshot messages. */
   private scheduleSnapshotPost() {
     if (this.snapshotTimer) return;
     this.snapshotTimer = setTimeout(() => {
@@ -453,6 +470,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }, 50);
   }
 
+  /** Flushes the latest snapshot immediately when the UI needs a synchronous refresh. */
   private flushSnapshotPost() {
     if (this.snapshotTimer) {
       clearTimeout(this.snapshotTimer);
@@ -461,6 +479,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.post({ type: 'session.snapshot', payload: this.store.snapshot });
   }
 
+  /** Suppresses intermediate snapshot posts while a larger state update is being applied. */
   private withSuspendedStorePosts<T>(fn: () => T) {
     this.suspendStorePosts += 1;
     try {
@@ -470,6 +489,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Produces the HTML bootstrap state used by the initial render and fallback refreshes. */
   private viewState() {
     return {
       connectionStatus: this.connectionStatus(),
@@ -480,6 +500,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
   }
 
+  /** Chooses the workspace root using the same precedence documented for this extension. */
   private root() {
     const folders = vscode.workspace.workspaceFolders;
     if (folders?.length) return folders[0]?.uri.fsPath;
@@ -496,6 +517,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     return undefined;
   }
 
+  /** Opens a session-relative file safely and rejects paths that escape the workspace root. */
   private async openFile(sessionID: string, rel: string) {
     const session = this.store.getSession(sessionID);
     if (!session) return;
@@ -543,6 +565,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  /** Builds a temporary before/after view from unified diff text when a real patch is available. */
   private async openDiff(sessionID: string, rel: string) {
     const session = this.store.getSession(sessionID);
     if (!session) return;
@@ -566,6 +589,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     });
   }
 
+  /** Sends a host message to the webview and falls back to HTML refresh if acknowledgements never arrive. */
   private post(message: HostMessage) {
     if (!this.view || (!this.ready && message.type !== 'bootstrap' && message.type !== 'error')) return;
     this.proc.log(`Sidebar post message: ${message.type}`);
@@ -578,6 +602,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  /** Refreshes the full HTML shell as a compatibility fallback for missing host acknowledgements. */
   private scheduleHtmlRefresh() {
     if (this.htmlRefreshTimer || !this.view) return;
     this.htmlRefreshTimer = setTimeout(() => {
@@ -588,6 +613,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }, 250);
   }
 
+  /** Restores the SDK status shape from the lighter state mirrored into the webview. */
   private toSdkStatus(status?: SessionStatusState): SessionStatus {
     if (!status || status.type === 'idle') return { type: 'idle' };
     if (status.type === 'busy') return { type: 'busy' };
@@ -607,6 +633,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     return this.applyUnifiedDiff(patch, 'after');
   }
 
+  /** Reconstructs one side of a unified diff for the built-in VS Code diff view. */
   private applyUnifiedDiff(patch: string, side: 'before' | 'after') {
     const lines = patch.split(/\r?\n/);
     const output: string[] = [];

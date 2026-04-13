@@ -1,3 +1,6 @@
+/*
+ * Implements the sidebar webview app, including host message handling and UI-local persisted state.
+ */
 import { ErrorBoundary, For, Index, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
 import { createStore } from 'solid-js/store';
 import type { HostMessage, WebviewMessage } from '../shared/protocol';
@@ -41,6 +44,7 @@ const initialPersisted = vscode.getState();
 const pendingHostMessages: HostMessage[] = [];
 const hostSubscribers = new Set<(message: HostMessage) => void>();
 
+/** Buffers host messages until the Solid app subscribes after mount. */
 function enqueueHostMessage(message?: HostMessage) {
   if (!message) return;
 
@@ -75,6 +79,7 @@ const emptyDraft: DraftOptions = {
   selection: initialPersisted?.draft ?? {},
 };
 
+/** Clones draft selection objects before persisting them through the VS Code webview API. */
 function cloneDraft(draft: DraftOptions['selection']) {
   return {
     agent: draft.agent,
@@ -88,6 +93,7 @@ function cloneDraft(draft: DraftOptions['selection']) {
   };
 }
 
+/** Clones chip arrays so persisted webview state never shares mutable references with the store. */
 function cloneChips(chips: ContextChip[]) {
   return chips.map((chip) => ({
     type: chip.type,
@@ -102,11 +108,13 @@ function cloneChips(chips: ContextChip[]) {
   }));
 }
 
+/** Detects whether transcript scrolling should stay pinned to the latest content. */
 function isNearBottom(element?: HTMLElement) {
   if (!element) return true;
   return element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX;
 }
 
+/** Produces a compact, comparable signature for one transcript part. */
 function partSignature(part?: TranscriptPartState) {
   if (!part) return 'none';
 
@@ -132,6 +140,7 @@ function partSignature(part?: TranscriptPartState) {
   }
 }
 
+/** Collapses the latest visible session content into a signature for auto-scroll decisions. */
 function sessionContentSignature(session?: SessionState) {
   if (!session) return undefined;
 
@@ -152,6 +161,7 @@ function sessionContentSignature(session?: SessionState) {
   ].join(':');
 }
 
+/** Coordinates host messages, persisted UI state, and the sidebar render tree. */
 export function App() {
   const [inputText, setInputText] = createSignal('');
   const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();

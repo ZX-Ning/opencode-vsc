@@ -1,3 +1,6 @@
+/*
+ * Activates the VS Code extension and wires together the host-side OpenCode services.
+ */
 import * as vscode from 'vscode';
 import { Client } from './opencode/client';
 import { EventStream } from './opencode/event-stream';
@@ -5,6 +8,9 @@ import { ProcessManager } from './opencode/process-manager';
 import { SessionStore } from './opencode/session-store';
 import { SidebarProvider } from './webview/sidebar-provider';
 
+/**
+ * Builds the host-side runtime graph, registers VS Code entry points, and starts the managed server.
+ */
 export function activate(context: vscode.ExtensionContext) {
   const proc = new ProcessManager();
   const client = new Client(proc);

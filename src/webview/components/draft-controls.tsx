@@ -1,3 +1,6 @@
+/*
+ * Renders the agent, model, and variant selectors for the composer draft state.
+ */
 import { For, createSignal, type Component } from 'solid-js';
 import type { AgentOption, DraftSelection, ModelOption } from '../../shared/models';
 import { ChevronDown } from './icons';
@@ -10,6 +13,7 @@ type Props = {
   onChange: (next: DraftSelection) => void;
 };
 
+/** Returns the variant list for the currently selected model. */
 function variants(models: ModelOption[], selection: DraftSelection) {
   return models.find((item) => item.providerID === selection.model?.providerID && item.id === selection.model?.modelID)?.variants ?? [];
 }
@@ -23,19 +27,23 @@ type DraftSelectOption = {
   searchAliases?: string[];
 };
 
+/** Normalizes labels into a loose searchable form for dropdown filtering. */
 function normalizeSearchText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
 
+/** Splits normalized search strings into ordered terms for ranking. */
 function tokenizeSearchText(value: string) {
   const normalized = normalizeSearchText(value);
   return normalized ? normalized.split(/\s+/) : [];
 }
 
+/** Removes spaces entirely so compact fuzzy matching still works for short queries. */
 function compactSearchText(value: string) {
   return normalizeSearchText(value).replace(/\s+/g, '');
 }
 
+/** Supports lightweight fuzzy matching by checking whether query characters appear in order. */
 function matchesSubsequence(query: string, target: string) {
   if (!query) return false;
   let queryIndex = 0;
@@ -50,6 +58,7 @@ function matchesSubsequence(query: string, target: string) {
   return false;
 }
 
+/** Scores dropdown options so exact and prefix matches outrank looser fuzzy results. */
 function scoreOption(option: DraftSelectOption, query: string) {
   const normalizedQuery = normalizeSearchText(query);
   if (!normalizedQuery) return -1;
@@ -101,6 +110,7 @@ function scoreOption(option: DraftSelectOption, query: string) {
   return score;
 }
 
+/** Keeps primary and secondary labels visually consistent across draft dropdowns. */
 function DraftOptionLabel(props: { option?: DraftSelectOption; fallback: string }) {
   const primary = () => props.option?.primaryLabel ?? props.option?.label ?? props.fallback;
   const secondary = () => props.option?.secondaryLabel;
@@ -113,6 +123,7 @@ function DraftOptionLabel(props: { option?: DraftSelectOption; fallback: string 
   );
 }
 
+/** Shared dropdown wrapper for all draft selectors, including searchable model selection. */
 function DraftSelect(props: {
   label: string;
   defaultLabel: string;

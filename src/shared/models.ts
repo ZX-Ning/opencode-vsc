@@ -1,3 +1,6 @@
+/*
+ * Declares the JSON-safe DTOs shared across the extension host and sidebar webview.
+ */
 import type { QuestionAnswer } from '@opencode-ai/sdk/v2/client';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error';

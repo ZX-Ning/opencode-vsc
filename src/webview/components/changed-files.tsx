@@ -1,3 +1,6 @@
+/*
+ * Shows session diff summaries and lets the user open individual file diffs.
+ */
 import { For, createSignal, type Component } from 'solid-js';
 import type { DiffState } from '../../shared/models';
 import { ChevronDown } from './icons';

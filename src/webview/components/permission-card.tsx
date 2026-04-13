@@ -1,3 +1,6 @@
+/*
+ * Renders pending permission requests and forwards approve or deny actions.
+ */
 import type { Component } from 'solid-js';
 import type { PermissionState } from '../../shared/models';
 
