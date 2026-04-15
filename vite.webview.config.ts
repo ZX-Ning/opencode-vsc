@@ -1,29 +1,29 @@
-import { defineConfig } from 'vite';
-import solidPlugin from 'vite-plugin-solid';
-import path from 'path';
+import { defineConfig } from "vite";
+import solidPlugin from "vite-plugin-solid";
+import path from "path";
 
 export default defineConfig({
   plugins: [solidPlugin()],
   build: {
-    target: 'esnext',
-    outDir: 'dist/webview',
+    target: "esnext",
+    outDir: "dist/webview",
     sourcemap: false,
     lib: {
-      entry: path.resolve(__dirname, 'src/webview/main.tsx'),
-      formats: ['iife'],
-      name: 'OpenCodeWebview',
-      fileName: 'main',
+      entry: path.resolve(__dirname, "src/webview/main.tsx"),
+      formats: ["iife"],
+      name: "OpenCodeWebview",
+      fileName: "main",
     },
     rollupOptions: {
-        output: {
-            entryFileNames: 'main.js',
-            assetFileNames: 'main.[ext]'
-        }
-    }
+      output: {
+        entryFileNames: "main.js",
+        assetFileNames: "main.[ext]",
+      },
+    },
   },
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
 });

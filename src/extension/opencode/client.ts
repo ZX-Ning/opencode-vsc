@@ -15,11 +15,11 @@ import {
   type SnapshotFileDiff,
   type TextPartInput,
   type Todo,
-} from '@opencode-ai/sdk/v2/client';
-import * as path from 'path';
-import { pathToFileURL } from 'url';
-import { ProcessManager } from './process-manager';
-import type { ContextChip, DraftSelection } from '../../shared/models';
+} from "@opencode-ai/sdk/v2/client";
+import * as path from "path";
+import { pathToFileURL } from "url";
+import { ProcessManager } from "./process-manager";
+import type { ContextChip, DraftSelection } from "../../shared/models";
 
 type MessageRow = {
   info: Message;
@@ -32,7 +32,7 @@ function absolutePath(directory: string, chip: ContextChip) {
 }
 
 /** Builds the placeholder source range expected by the SDK for attached file references. */
-function sourceText(value = '') {
+function sourceText(value = "") {
   return {
     value,
     start: 0,
@@ -43,7 +43,7 @@ function sourceText(value = '') {
 /** Formats selection chips the same way the OpenCode UI labels attached ranges. */
 function selectionLabel(chip: ContextChip) {
   if (!chip.range) return path.basename(chip.path);
-  return `${chip.path}#${chip.range.startLine}${chip.range.endLine !== chip.range.startLine ? `-${chip.range.endLine}` : ''}`;
+  return `${chip.path}#${chip.range.startLine}${chip.range.endLine !== chip.range.startLine ? `-${chip.range.endLine}` : ""}`;
 }
 
 export class Client {
@@ -58,10 +58,10 @@ export class Client {
 
   /** Recreates the SDK client whenever the managed server endpoint or auth state changes. */
   private get sdk() {
-    const next = `${this.proc.baseUrl ?? ''}:${this.proc.password}`;
+    const next = `${this.proc.baseUrl ?? ""}:${this.proc.password}`;
     if (this.key !== next) {
       this.key = next;
-      this.proc.log(`Client reconfigured for ${this.proc.baseUrl ?? 'no-base-url'}`);
+      this.proc.log(`Client reconfigured for ${this.proc.baseUrl ?? "no-base-url"}`);
       this.sdkValue = this.proc.baseUrl
         ? createOpencodeClient({
             baseUrl: this.proc.baseUrl,
@@ -75,7 +75,7 @@ export class Client {
   async getSessions(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as Session[];
-    this.proc.log(`SDK getSessions directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getSessions directory=${directory ?? "<none>"}`);
     const res = await sdk.session.list({ directory, limit: 50 });
     this.proc.log(`SDK getSessions ok count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -86,14 +86,14 @@ export class Client {
     if (!sdk) return;
     this.proc.log(`SDK createSession directory=${directory}`);
     const res = await sdk.session.create({ directory });
-    this.proc.log(`SDK createSession ok id=${res.data?.id ?? '<none>'}`);
+    this.proc.log(`SDK createSession ok id=${res.data?.id ?? "<none>"}`);
     return res.data;
   }
 
   async getSession(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK getSession session=${sessionID} directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getSession session=${sessionID} directory=${directory ?? "<none>"}`);
     const res = await sdk.session.get({ sessionID, directory });
     this.proc.log(`SDK getSession ok session=${sessionID} found=${!!res.data}`);
     return res.data;
@@ -102,7 +102,7 @@ export class Client {
   async archiveSession(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK archiveSession session=${sessionID} directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK archiveSession session=${sessionID} directory=${directory ?? "<none>"}`);
     return sdk.session.update({
       sessionID,
       directory,
@@ -113,7 +113,7 @@ export class Client {
   async getMessages(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as MessageRow[];
-    this.proc.log(`SDK getMessages session=${sessionID} directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getMessages session=${sessionID} directory=${directory ?? "<none>"}`);
     const res = await sdk.session.messages({ sessionID, directory, limit: 100 });
     this.proc.log(`SDK getMessages ok session=${sessionID} count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -122,7 +122,9 @@ export class Client {
   async getDiff(sessionID: string, directory?: string, messageID?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as SnapshotFileDiff[];
-    this.proc.log(`SDK getDiff session=${sessionID} directory=${directory ?? '<none>'} message=${messageID ?? '<none>'}`);
+    this.proc.log(
+      `SDK getDiff session=${sessionID} directory=${directory ?? "<none>"} message=${messageID ?? "<none>"}`,
+    );
     const res = await sdk.session.diff({ sessionID, directory, messageID });
     this.proc.log(`SDK getDiff ok session=${sessionID} count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -131,7 +133,7 @@ export class Client {
   async getTodos(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as Todo[];
-    this.proc.log(`SDK getTodos session=${sessionID} directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getTodos session=${sessionID} directory=${directory ?? "<none>"}`);
     const res = await sdk.session.todo({ sessionID, directory });
     this.proc.log(`SDK getTodos ok session=${sessionID} count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -140,7 +142,7 @@ export class Client {
   async getPendingPermissions(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as PermissionRequest[];
-    this.proc.log(`SDK getPendingPermissions directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getPendingPermissions directory=${directory ?? "<none>"}`);
     const res = await sdk.permission.list({ directory });
     this.proc.log(`SDK getPendingPermissions ok count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -149,7 +151,7 @@ export class Client {
   async getPendingQuestions(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as QuestionRequest[];
-    this.proc.log(`SDK getPendingQuestions directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getPendingQuestions directory=${directory ?? "<none>"}`);
     const res = await sdk.question.list({ directory });
     this.proc.log(`SDK getPendingQuestions ok count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -158,7 +160,7 @@ export class Client {
   async getProviders(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return { providers: [] as Provider[], defaults: {} as Record<string, string> };
-    this.proc.log(`SDK getProviders directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getProviders directory=${directory ?? "<none>"}`);
     const res = await sdk.config.providers({ directory });
     this.proc.log(`SDK getProviders ok count=${res.data?.providers.length ?? 0}`);
     return {
@@ -170,7 +172,7 @@ export class Client {
   async getAgents(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as Agent[];
-    this.proc.log(`SDK getAgents directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getAgents directory=${directory ?? "<none>"}`);
     const res = await sdk.app.agents({ directory });
     this.proc.log(`SDK getAgents ok count=${res.data?.length ?? 0}`);
     return res.data ?? [];
@@ -179,9 +181,9 @@ export class Client {
   async getDefaultAgent(directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return undefined;
-    this.proc.log(`SDK getDefaultAgent directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK getDefaultAgent directory=${directory ?? "<none>"}`);
     const res = await sdk.config.get({ directory });
-    this.proc.log(`SDK getDefaultAgent ok agent=${res.data?.default_agent ?? '<none>'}`);
+    this.proc.log(`SDK getDefaultAgent ok agent=${res.data?.default_agent ?? "<none>"}`);
     return res.data?.default_agent;
   }
 
@@ -195,28 +197,30 @@ export class Client {
   ) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK sendPrompt session=${sessionID} directory=${directory} attachments=${attachments.length}`);
+    this.proc.log(
+      `SDK sendPrompt session=${sessionID} directory=${directory} attachments=${attachments.length}`,
+    );
 
     // Match OpenCode's own attach-file flow: send file references and let the server-side
     // Read tool expand text files and selected line ranges.
-    const parts: Array<TextPartInput | FilePartInput> = [{ type: 'text', text }];
+    const parts: Array<TextPartInput | FilePartInput> = [{ type: "text", text }];
 
     for (const chip of attachments) {
       const filePath = absolutePath(directory, chip);
       const url = pathToFileURL(filePath);
 
       if (chip.range) {
-        url.searchParams.set('start', String(chip.range.startLine));
-        url.searchParams.set('end', String(chip.range.endLine));
+        url.searchParams.set("start", String(chip.range.startLine));
+        url.searchParams.set("end", String(chip.range.endLine));
       }
 
       parts.push({
-        type: 'file' as const,
-        mime: 'text/plain',
+        type: "file" as const,
+        mime: "text/plain",
         filename: chip.range ? selectionLabel(chip) : path.basename(filePath),
         url: url.href,
         source: {
-          type: 'file' as const,
+          type: "file" as const,
           path: chip.path,
           text: sourceText(),
         },
@@ -243,17 +247,17 @@ export class Client {
   async abortRun(sessionID: string, directory?: string) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK abortRun session=${sessionID} directory=${directory ?? '<none>'}`);
+    this.proc.log(`SDK abortRun session=${sessionID} directory=${directory ?? "<none>"}`);
     return sdk.session.abort({ sessionID, directory });
   }
 
-  async compactSession(sessionID: string, directory: string, model?: DraftSelection['model']) {
+  async compactSession(sessionID: string, directory: string, model?: DraftSelection["model"]) {
     const sdk = this.sdk;
     if (!sdk) return;
     this.proc.log(`SDK compactSession session=${sessionID} directory=${directory}`);
 
     if (!model) {
-      throw new Error('No model selected for compacting context');
+      throw new Error("No model selected for compacting context");
     }
 
     return sdk.session.summarize({
@@ -268,10 +272,12 @@ export class Client {
   async revertTurn(sessionID: string, directory: string, messageID: string) {
     const sdk = this.sdk;
     if (!sdk) return;
-    this.proc.log(`SDK revertTurn session=${sessionID} directory=${directory} message=${messageID}`);
+    this.proc.log(
+      `SDK revertTurn session=${sessionID} directory=${directory} message=${messageID}`,
+    );
 
     const msg = await sdk.session.message({ sessionID, messageID, directory });
-    if (!msg.data?.info || msg.data.info.role !== 'user') return;
+    if (!msg.data?.info || msg.data.info.role !== "user") return;
 
     await sdk.session.revert({ sessionID, directory, messageID });
   }
@@ -280,14 +286,14 @@ export class Client {
     const sdk = this.sdk;
     if (!sdk) return;
     this.proc.log(`SDK replyPermission request=${requestID} remember=${!!remember}`);
-    return sdk.permission.reply({ requestID, reply: remember ? 'always' : 'once' });
+    return sdk.permission.reply({ requestID, reply: remember ? "always" : "once" });
   }
 
   async rejectPermission(requestID: string) {
     const sdk = this.sdk;
     if (!sdk) return;
     this.proc.log(`SDK rejectPermission request=${requestID}`);
-    return sdk.permission.reply({ requestID, reply: 'reject' });
+    return sdk.permission.reply({ requestID, reply: "reject" });
   }
 
   async replyQuestion(requestID: string, answers: QuestionAnswer[]) {

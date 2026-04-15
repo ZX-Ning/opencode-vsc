@@ -1,9 +1,9 @@
 /*
  * Shows session diff summaries and lets the user open individual file diffs.
  */
-import { For, createSignal, type Component } from 'solid-js';
-import type { DiffState } from '../../shared/models';
-import { ChevronDown } from './icons';
+import { For, createSignal, type Component } from "solid-js";
+import type { DiffState } from "../../shared/models";
+import { ChevronDown } from "./icons";
 
 type Props = {
   diffs: DiffState[];
@@ -15,23 +15,20 @@ export const ChangedFiles: Component<Props> = (props) => {
 
   return (
     <div class="changed-files">
-      <button 
-        class="section-title collapsible-header" 
-        onClick={() => setIsExpanded(!isExpanded())}
-      >
+      <button class="section-title collapsible-header" onClick={() => setIsExpanded(!isExpanded())}>
         <span class="collapsible-title">Changed Files ({props.diffs.length})</span>
-        <ChevronDown 
-          size={16} 
-          class={`collapsible-icon ${isExpanded() ? 'expanded' : ''}`} 
-        />
+        <ChevronDown size={16} class={`collapsible-icon ${isExpanded() ? "expanded" : ""}`} />
       </button>
-      
+
       {isExpanded() && (
         <div class="changed-files-list">
           <For each={props.diffs}>
             {(diff) => (
               <div class="changed-row">
-                <button class="link-button changed-name" onClick={() => props.onOpenDiff(diff.file)}>
+                <button
+                  class="link-button changed-name"
+                  onClick={() => props.onOpenDiff(diff.file)}
+                >
                   {diff.file}
                 </button>
                 <div class="changed-meta">

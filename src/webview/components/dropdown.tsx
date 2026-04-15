@@ -1,7 +1,7 @@
 /*
  * Provides a small accessible dropdown primitive used by multiple sidebar controls.
  */
-import { Component, JSX, createSignal, Show } from 'solid-js';
+import { Component, JSX, createSignal, Show } from "solid-js";
 
 /** Manages trigger focus, keyboard navigation, and overlay dismissal for a dropdown menu. */
 export const Dropdown: Component<{
@@ -9,15 +9,15 @@ export const Dropdown: Component<{
     isOpen: boolean;
     toggle: () => void;
     disabled?: boolean;
-    'aria-expanded': boolean;
-    'aria-haspopup': 'menu';
+    "aria-expanded": boolean;
+    "aria-haspopup": "menu";
     ref: (el: HTMLElement) => void;
   }) => JSX.Element;
   menu: (props: { close: () => void }) => JSX.Element;
   disabled?: boolean;
   menuClass?: string;
   containerClass?: string;
-  initialScroll?: 'active' | 'top';
+  initialScroll?: "active" | "top";
   onOpen?: () => void;
 }> = (props) => {
   const [isOpen, setIsOpen] = createSignal(false);
@@ -25,15 +25,15 @@ export const Dropdown: Component<{
   let menuRef: HTMLDivElement | undefined;
 
   const focusFirstItem = () => {
-    const items = menuRef?.querySelectorAll('button:not([disabled]), input:not([disabled])');
+    const items = menuRef?.querySelectorAll("button:not([disabled]), input:not([disabled])");
     if (items && items.length > 0) {
       (items[0] as HTMLElement).focus();
     }
   };
 
   const scrollActiveItemIntoView = () => {
-    const activeItem = menuRef?.querySelector('.dropdown-item-active');
-    const list = menuRef?.querySelector('.dropdown-list');
+    const activeItem = menuRef?.querySelector(".dropdown-item-active");
+    const list = menuRef?.querySelector(".dropdown-list");
     if (!(activeItem instanceof HTMLElement) || !(list instanceof HTMLElement)) return;
 
     const listRect = list.getBoundingClientRect();
@@ -51,7 +51,7 @@ export const Dropdown: Component<{
   };
 
   const scrollListToTop = () => {
-    const list = menuRef?.querySelector('.dropdown-list');
+    const list = menuRef?.querySelector(".dropdown-list");
     if (list instanceof HTMLElement) {
       list.scrollTop = 0;
     }
@@ -62,7 +62,7 @@ export const Dropdown: Component<{
     setIsOpen(true);
     setTimeout(() => {
       focusFirstItem();
-      if (props.initialScroll === 'top') {
+      if (props.initialScroll === "top") {
         scrollListToTop();
         return;
       }
@@ -78,27 +78,29 @@ export const Dropdown: Component<{
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (!isOpen()) {
-      if (e.key === 'ArrowDown' && e.target === triggerRef) {
+      if (e.key === "ArrowDown" && e.target === triggerRef) {
         e.preventDefault();
         open();
       }
       return;
     }
 
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       e.preventDefault();
       close();
       return;
     }
 
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      const items = Array.from(menuRef?.querySelectorAll('button:not([disabled]), input:not([disabled])') || []) as HTMLElement[];
+      const items = Array.from(
+        menuRef?.querySelectorAll("button:not([disabled]), input:not([disabled])") || [],
+      ) as HTMLElement[];
       const active = document.activeElement as HTMLElement;
       const index = items.indexOf(active);
 
       let nextIndex = index;
-      if (e.key === 'ArrowDown') {
+      if (e.key === "ArrowDown") {
         nextIndex = index < items.length - 1 ? index + 1 : 0;
       } else {
         nextIndex = index > 0 ? index - 1 : items.length - 1;
@@ -124,13 +126,20 @@ export const Dropdown: Component<{
           open();
         },
         disabled: props.disabled,
-        'aria-expanded': isOpen(),
-        'aria-haspopup': 'menu',
-        ref: (el) => { triggerRef = el; }
+        "aria-expanded": isOpen(),
+        "aria-haspopup": "menu",
+        ref: (el) => {
+          triggerRef = el;
+        },
       })}
       <Show when={isOpen() && !props.disabled}>
         <div class="dropdown-overlay" onClick={close} />
-        <div class={`dropdown-menu ${props.menuClass ?? ''}`} ref={(el) => { menuRef = el; }}>
+        <div
+          class={`dropdown-menu ${props.menuClass ?? ""}`}
+          ref={(el) => {
+            menuRef = el;
+          }}
+        >
           {props.menu({ close })}
         </div>
       </Show>

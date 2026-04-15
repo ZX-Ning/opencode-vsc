@@ -25,7 +25,9 @@
   color: var(--vscode-descriptionForeground);
   cursor: pointer;
   max-width: 140px;
-  transition: background-color 0.1s, border-color 0.1s;
+  transition:
+    background-color 0.1s,
+    border-color 0.1s;
 }
 
 .draft-dropdown-btn:hover:not(:disabled) {

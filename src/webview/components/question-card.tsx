@@ -1,8 +1,8 @@
 /*
  * Renders pending question prompts and collects structured answers for the host.
  */
-import { For, Show, createEffect, createMemo, createSignal, type Component } from 'solid-js';
-import type { QuestionAnswerState, QuestionItemState, QuestionState } from '../../shared/models';
+import { For, Show, createEffect, createMemo, createSignal, type Component } from "solid-js";
+import type { QuestionAnswerState, QuestionItemState, QuestionState } from "../../shared/models";
 
 type Props = {
   question: QuestionState;
@@ -16,7 +16,7 @@ export const QuestionCard: Component<Props> = (props) => {
   const [customEnabled, setCustomEnabled] = createSignal<boolean[]>(
     items().map((item) => allowsCustom(item) && item.options.length === 0),
   );
-  const [customText, setCustomText] = createSignal<string[]>(items().map(() => ''));
+  const [customText, setCustomText] = createSignal<string[]>(items().map(() => ""));
   let previousQuestionID = props.question.id;
   let previousQuestionCount = props.question.questions.length;
 
@@ -26,30 +26,31 @@ export const QuestionCard: Component<Props> = (props) => {
   createEffect(() => {
     const nextQuestionID = props.question.id;
     const nextQuestionCount = props.question.questions.length;
-    if (nextQuestionID === previousQuestionID && nextQuestionCount === previousQuestionCount) return;
+    if (nextQuestionID === previousQuestionID && nextQuestionCount === previousQuestionCount)
+      return;
 
     previousQuestionID = nextQuestionID;
     previousQuestionCount = nextQuestionCount;
     setSelectedOptions(items().map(() => []));
     setCustomEnabled(items().map((item) => allowsCustom(item) && item.options.length === 0));
-    setCustomText(items().map(() => ''));
+    setCustomText(items().map(() => ""));
   });
 
   /** Treats custom answers as opt-out only when the protocol explicitly disables them. */
   function allowsCustom(item: QuestionItemState) {
     return item.custom !== false;
-}
+  }
 
   /** Removes empty and duplicate answers before they are posted back to the host. */
   function unique(values: string[]) {
     return [...new Set(values.filter((value) => value.trim()))];
-}
+  }
 
   /** Merges selected options and custom text into the final answer payload for one question. */
   function answersFor(index: number) {
     const item = items()[index];
     const selected = selectedOptions()[index] ?? [];
-    const custom = customEnabled()[index] ? (customText()[index] ?? '').trim() : '';
+    const custom = customEnabled()[index] ? (customText()[index] ?? "").trim() : "";
 
     if (!item.multiple) {
       if (custom) return [custom];
@@ -57,12 +58,12 @@ export const QuestionCard: Component<Props> = (props) => {
     }
 
     return unique([...selected, custom]);
-}
+  }
 
   /** Defers focus until after the custom textarea is mounted. */
   function focusCustom(index: number) {
     requestAnimationFrame(() => customRefs[index]?.focus());
-}
+  }
 
   /** Applies single-select or multi-select behavior for one question option. */
   function toggleOption(questionIndex: number, label: string) {
@@ -89,7 +90,7 @@ export const QuestionCard: Component<Props> = (props) => {
         return next;
       });
     }
-}
+  }
 
   /** Toggles the custom answer input while keeping single-select answers mutually exclusive. */
   function toggleCustom(questionIndex: number) {
@@ -122,13 +123,13 @@ export const QuestionCard: Component<Props> = (props) => {
       next[questionIndex] = value;
       return next;
     });
-}
+  }
 
   /** Packages all per-question answers into the protocol shape expected by the host. */
   function submit() {
     const answers: QuestionAnswerState = items().map((_, index) => answersFor(index));
     props.onAnswer(props.question.id, answers);
-}
+  }
 
   return (
     <div class="card">
@@ -144,7 +145,11 @@ export const QuestionCard: Component<Props> = (props) => {
                   <button
                     type="button"
                     class="btn btn-secondary question-option"
-                    classList={{ 'question-option-selected': (selectedOptions()[index()] ?? []).includes(option.label) }}
+                    classList={{
+                      "question-option-selected": (selectedOptions()[index()] ?? []).includes(
+                        option.label,
+                      ),
+                    }}
                     aria-pressed={(selectedOptions()[index()] ?? []).includes(option.label)}
                     onClick={() => toggleOption(index(), option.label)}
                   >
@@ -157,16 +162,18 @@ export const QuestionCard: Component<Props> = (props) => {
                 <button
                   type="button"
                   class="btn btn-secondary question-option"
-                  classList={{ 'question-option-selected': customEnabled()[index()] }}
+                  classList={{ "question-option-selected": customEnabled()[index()] }}
                   aria-pressed={customEnabled()[index()]}
                   onClick={() => toggleCustom(index())}
                 >
-                  {item.multiple ? 'Add custom' : 'Type answer'}
+                  {item.multiple ? "Add custom" : "Type answer"}
                 </button>
               </Show>
             </div>
 
-            <Show when={allowsCustom(item) && (customEnabled()[index()] || item.options.length === 0)}>
+            <Show
+              when={allowsCustom(item) && (customEnabled()[index()] || item.options.length === 0)}
+            >
               <div class="question-custom">
                 <textarea
                   ref={(el) => {
@@ -175,7 +182,7 @@ export const QuestionCard: Component<Props> = (props) => {
                   class="question-custom-input"
                   rows={3}
                   value={customText()[index()]}
-                  placeholder={item.multiple ? 'Type a custom answer' : 'Type your answer'}
+                  placeholder={item.multiple ? "Type a custom answer" : "Type your answer"}
                   onInput={(event) => setCustomValue(index(), event.currentTarget.value)}
                 />
               </div>

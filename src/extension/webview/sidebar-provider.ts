@@ -1,19 +1,34 @@
 /*
  * Owns the sidebar webview, bridges host and webview messages, and lazily hydrates session data.
  */
-import * as fs from 'fs';
-import * as path from 'path';
-import * as vscode from 'vscode';
-import type { HostMessage, WebviewMessage } from '../../shared/protocol';
-import type { ContextChip, DraftOptions, DraftSelection, SessionState, SessionStatusState } from '../../shared/models';
-import type { Message, Part, PermissionRequest, QuestionRequest, Session, SessionStatus, SnapshotFileDiff, Todo } from '@opencode-ai/sdk/v2/client';
-import { Client } from '../opencode/client';
-import { EventStream } from '../opencode/event-stream';
-import { ProcessManager } from '../opencode/process-manager';
-import { SessionStore } from '../opencode/session-store';
-import { WorkspaceContext } from '../vscode/workspace-context';
-import { getWebviewHtml } from './html';
-import { DraftStore } from './draft-store';
+import * as fs from "fs";
+import * as path from "path";
+import * as vscode from "vscode";
+import type { HostMessage, WebviewMessage } from "../../shared/protocol";
+import type {
+  ContextChip,
+  DraftOptions,
+  DraftSelection,
+  SessionState,
+  SessionStatusState,
+} from "../../shared/models";
+import type {
+  Message,
+  Part,
+  PermissionRequest,
+  QuestionRequest,
+  Session,
+  SessionStatus,
+  SnapshotFileDiff,
+  Todo,
+} from "@opencode-ai/sdk/v2/client";
+import { Client } from "../opencode/client";
+import { EventStream } from "../opencode/event-stream";
+import { ProcessManager } from "../opencode/process-manager";
+import { SessionStore } from "../opencode/session-store";
+import { WorkspaceContext } from "../vscode/workspace-context";
+import { getWebviewHtml } from "./html";
+import { DraftStore } from "./draft-store";
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
@@ -36,20 +51,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private readonly store: SessionStore,
     private readonly context: vscode.ExtensionContext,
   ) {
-    this.proc.on('statusChange', () => {
+    this.proc.on("statusChange", () => {
       this.postConnection();
-      if (this.proc.status === 'running' && this.ready) {
+      if (this.proc.status === "running" && this.ready) {
         void this.bootstrap();
       }
     });
 
-    this.events.on('error', (err) => {
+    this.events.on("error", (err) => {
       this.error = err instanceof Error ? err.message : String(err);
-      this.post({ type: 'error', payload: { message: this.error } });
+      this.post({ type: "error", payload: { message: this.error } });
     });
 
-    this.store.on('change', () => {
-      void this.context.workspaceState.update('activeSessionId', this.store.activeSessionId);
+    this.store.on("change", () => {
+      void this.context.workspaceState.update("activeSessionId", this.store.activeSessionId);
       if (this.suspendStorePosts > 0) return;
       this.scheduleSnapshotPost();
     });
@@ -63,14 +78,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.view = webviewView;
     this.ready = false;
     this.hostAcked = false;
-    this.proc.log('Sidebar resolveWebviewView');
+    this.proc.log("Sidebar resolveWebviewView");
 
     webviewView.webview.options = {
       enableScripts: true,
-      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, 'dist')],
+      localResourceRoots: [vscode.Uri.joinPath(this.extensionUri, "dist")],
     };
 
-    webviewView.webview.html = getWebviewHtml(webviewView.webview, this.extensionUri, this.viewState());
+    webviewView.webview.html = getWebviewHtml(
+      webviewView.webview,
+      this.extensionUri,
+      this.viewState(),
+    );
 
     webviewView.webview.onDidReceiveMessage(async (msg: WebviewMessage) => {
       this.proc.log(`Sidebar received message: ${msg.type}`);
@@ -79,13 +98,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.proc.log(`Sidebar handle error: ${message}`);
-        this.post({ type: 'error', payload: { message } });
+        this.post({ type: "error", payload: { message } });
       }
     });
 
     webviewView.onDidDispose(() => {
       if (this.view === webviewView) {
-        this.proc.log('Sidebar disposed');
+        this.proc.log("Sidebar disposed");
         this.view = undefined;
         this.ready = false;
       }
@@ -95,7 +114,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       this.proc.log(`Sidebar visibility changed visible=${webviewView.visible}`);
       if (webviewView.visible && this.ready) {
         this.post({
-          type: 'bootstrap',
+          type: "bootstrap",
           payload: {
             connectionStatus: this.connectionStatus(),
             ...this.store.snapshot,
@@ -105,43 +124,43 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       }
     });
 
-    this.proc.log(`Sidebar resolve restoredState=${context.state ? 'yes' : 'no'}`);
+    this.proc.log(`Sidebar resolve restoredState=${context.state ? "yes" : "no"}`);
   }
 
   /** Dispatches webview messages into host-side actions and state updates. */
   private async handle(msg: WebviewMessage) {
     switch (msg.type) {
-      case 'ready':
+      case "ready":
         this.ready = true;
-        this.proc.log('Sidebar ready acknowledged');
+        this.proc.log("Sidebar ready acknowledged");
         this.postConnection();
         await this.bootstrap();
         return;
-      case 'debug.log':
+      case "debug.log":
         this.proc.log(`Webview ${msg.payload.message}`);
         return;
-      case 'host.ack':
+      case "host.ack":
         this.hostAcked = true;
         this.proc.log(`Sidebar host ack ${msg.payload.messageType}`);
         return;
-      case 'session.new':
+      case "session.new":
         await this.createSession();
         return;
-      case 'session.switch':
+      case "session.switch":
         this.store.activeSessionId = msg.payload.sessionID;
         this.syncDraftFromSession();
         this.postDraft();
         this.flushSnapshotPost();
         void this.ensureSessionLoaded(msg.payload.sessionID);
         return;
-      case 'session.archive':
+      case "session.archive":
         await this.archiveSession(msg.payload.sessionID);
         return;
-      case 'draft.set':
+      case "draft.set":
         this.draft.setSelection(msg.payload);
         this.postDraft();
         return;
-      case 'context.sync':
+      case "context.sync":
         this.contextChips = msg.payload.chips.map((chip) => ({
           type: chip.type,
           path: chip.path,
@@ -154,51 +173,51 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
           content: chip.content,
         }));
         return;
-      case 'prompt.send':
+      case "prompt.send":
         await this.sendPrompt(msg.payload.text, msg.payload.attachments, msg.payload.draft);
         return;
-      case 'session.abort':
+      case "session.abort":
         await this.abort(msg.payload.sessionID);
         return;
-      case 'session.compact':
+      case "session.compact":
         await this.compact(msg.payload.sessionID);
         return;
-      case 'turn.revert':
+      case "turn.revert":
         await this.revert(msg.payload.sessionID, msg.payload.messageID);
         return;
-      case 'permission.approve':
+      case "permission.approve":
         await this.client.replyPermission(msg.payload.requestID, msg.payload.remember);
         return;
-      case 'permission.deny':
+      case "permission.deny":
         await this.client.rejectPermission(msg.payload.requestID);
         return;
-      case 'question.answer':
+      case "question.answer":
         await this.client.replyQuestion(msg.payload.requestID, msg.payload.answers);
         return;
-      case 'context.attachActiveFile': {
+      case "context.attachActiveFile": {
         const item = this.workspace.getActiveFileContext();
         if (item) {
           this.contextChips = [...this.contextChips, item];
-          this.post({ type: 'context.preview', payload: item });
+          this.post({ type: "context.preview", payload: item });
         } else {
-          this.post({ type: 'error', payload: { message: 'No active editor found to attach' } });
+          this.post({ type: "error", payload: { message: "No active editor found to attach" } });
         }
         return;
       }
-      case 'context.attachSelection': {
+      case "context.attachSelection": {
         const item = this.workspace.getSelectionContext();
         if (item) {
           this.contextChips = [...this.contextChips, item];
-          this.post({ type: 'context.preview', payload: item });
+          this.post({ type: "context.preview", payload: item });
         } else {
-          this.post({ type: 'error', payload: { message: 'No selection found in active editor' } });
+          this.post({ type: "error", payload: { message: "No selection found in active editor" } });
         }
         return;
       }
-      case 'file.open':
+      case "file.open":
         await this.openFile(msg.payload.sessionID, msg.payload.path);
         return;
-      case 'diff.open':
+      case "diff.open":
         await this.openDiff(msg.payload.sessionID, msg.payload.path);
         return;
     }
@@ -219,10 +238,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   /** Reloads lightweight session lists, restores draft state, and hydrates the active session on demand. */
   private async runBootstrap() {
-    this.proc.log('Sidebar bootstrap start');
+    this.proc.log("Sidebar bootstrap start");
     const directory = this.root();
     const knownStatus = new Map(
-      this.store.snapshot.sessions.map((session) => [session.info.id, this.toSdkStatus(session.status)] as const),
+      this.store.snapshot.sessions.map(
+        (session) => [session.info.id, this.toSdkStatus(session.status)] as const,
+      ),
     );
 
     if (!directory) {
@@ -230,16 +251,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.store.bootstrap();
         this.hydratedSessions.clear();
       });
-      this.error = 'Open a workspace folder to use OpenCode.';
+      this.error = "Open a workspace folder to use OpenCode.";
       this.post({
-        type: 'bootstrap',
+        type: "bootstrap",
         payload: {
           connectionStatus: this.connectionStatus(),
           ...this.store.snapshot,
           draft: this.draft.snapshot,
         },
       });
-      this.post({ type: 'error', payload: { message: this.error } });
+      this.post({ type: "error", payload: { message: this.error } });
       return;
     }
 
@@ -253,14 +274,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         this.store.upsertSession(session, { status: knownStatus.get(session.id) });
       }
 
-      const saved = this.context.workspaceState.get<string>('activeSessionId');
+      const saved = this.context.workspaceState.get<string>("activeSessionId");
       if (saved && this.store.getSession(saved)) this.store.activeSessionId = saved;
       if (!this.store.activeSessionId && sessions[0]) this.store.activeSessionId = sessions[0].id;
     });
 
     this.error = undefined;
     this.post({
-      type: 'bootstrap',
+      type: "bootstrap",
       payload: {
         connectionStatus: this.connectionStatus(),
         ...this.store.snapshot,
@@ -277,8 +298,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private async createSession() {
     const directory = this.root();
     if (!directory) {
-      this.error = 'Open a workspace folder to create a session.';
-      this.post({ type: 'error', payload: { message: this.error } });
+      this.error = "Open a workspace folder to create a session.";
+      this.post({ type: "error", payload: { message: this.error } });
       return;
     }
 
@@ -337,7 +358,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     if (!session) return;
 
     this.draft.setSelection(draft ?? this.draft.snapshot.selection);
-    await this.client.sendPrompt(sessionID, session.info.directory, text, attachments, this.draft.snapshot.selection);
+    await this.client.sendPrompt(
+      sessionID,
+      session.info.directory,
+      text,
+      attachments,
+      this.draft.snapshot.selection,
+    );
     this.contextChips = [];
     this.error = undefined;
     this.postDraft();
@@ -439,17 +466,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
   /** Maps process state into the smaller connection enum exposed to the webview. */
   private connectionStatus() {
-    if (this.proc.status === 'running') return 'connected' as const;
-    if (this.proc.status === 'starting') return 'connecting' as const;
-    if (this.proc.status === 'error') return 'error' as const;
-    return 'disconnected' as const;
+    if (this.proc.status === "running") return "connected" as const;
+    if (this.proc.status === "starting") return "connecting" as const;
+    if (this.proc.status === "error") return "error" as const;
+    return "disconnected" as const;
   }
 
   /** Posts the latest connection state so the webview can render startup and error transitions. */
   private postConnection() {
     this.error = this.proc.error ?? undefined;
     this.post({
-      type: 'connection.state',
+      type: "connection.state",
       payload: {
         status: this.connectionStatus(),
         error: this.proc.error,
@@ -458,7 +485,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private postDraft() {
-    this.post({ type: 'draft.state', payload: this.draft.snapshot });
+    this.post({ type: "draft.state", payload: this.draft.snapshot });
   }
 
   /** Coalesces frequent store updates into a smaller stream of snapshot messages. */
@@ -466,7 +493,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     if (this.snapshotTimer) return;
     this.snapshotTimer = setTimeout(() => {
       this.snapshotTimer = undefined;
-      this.post({ type: 'session.snapshot', payload: this.store.snapshot });
+      this.post({ type: "session.snapshot", payload: this.store.snapshot });
     }, 50);
   }
 
@@ -476,7 +503,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       clearTimeout(this.snapshotTimer);
       this.snapshotTimer = undefined;
     }
-    this.post({ type: 'session.snapshot', payload: this.store.snapshot });
+    this.post({ type: "session.snapshot", payload: this.store.snapshot });
   }
 
   /** Suppresses intermediate snapshot posts while a larger state update is being applied. */
@@ -527,9 +554,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const line = match?.[2];
     const column = match?.[3];
     const root = fs.realpathSync(session.info.directory);
-    const normalized = rawPath.replace(/\\/g, '/').replace(/^\.\//, '');
-    if (!normalized) throw new Error('File path is empty');
-    if (normalized.startsWith('../') || path.isAbsolute(normalized)) {
+    const normalized = rawPath.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (!normalized) throw new Error("File path is empty");
+    if (normalized.startsWith("../") || path.isAbsolute(normalized)) {
       throw new Error(`File path is outside the session root: ${rel}`);
     }
 
@@ -540,7 +567,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     const target = fs.realpathSync(resolved);
     const relative = path.relative(root, target);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
       throw new Error(`File path is outside the session root: ${rel}`);
     }
 
@@ -554,9 +581,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const selection = line
       ? new vscode.Selection(
           Math.max(0, Number(line) - 1),
-          Math.max(0, Number(column ?? '1') - 1),
+          Math.max(0, Number(column ?? "1") - 1),
           Math.max(0, Number(line) - 1),
-          Math.max(0, Number(column ?? '1') - 1),
+          Math.max(0, Number(column ?? "1") - 1),
         )
       : undefined;
     await vscode.window.showTextDocument(document, {
@@ -584,20 +611,26 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       content: this.extractModifiedContent(diff.patch),
     });
 
-    await vscode.commands.executeCommand('vscode.diff', before.uri, after.uri, title, {
+    await vscode.commands.executeCommand("vscode.diff", before.uri, after.uri, title, {
       preview: false,
     });
   }
 
   /** Sends a host message to the webview and falls back to HTML refresh if acknowledgements never arrive. */
   private post(message: HostMessage) {
-    if (!this.view || (!this.ready && message.type !== 'bootstrap' && message.type !== 'error')) return;
+    if (!this.view || (!this.ready && message.type !== "bootstrap" && message.type !== "error"))
+      return;
     this.proc.log(`Sidebar post message: ${message.type}`);
     void this.view.webview.postMessage(message).then((ok) => {
       this.proc.log(`Sidebar post delivered=${ok}`);
     });
 
-    if (!this.hostAcked && (message.type === 'bootstrap' || message.type === 'connection.state' || message.type === 'session.snapshot')) {
+    if (
+      !this.hostAcked &&
+      (message.type === "bootstrap" ||
+        message.type === "connection.state" ||
+        message.type === "session.snapshot")
+    ) {
       this.scheduleHtmlRefresh();
     }
   }
@@ -608,17 +641,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     this.htmlRefreshTimer = setTimeout(() => {
       this.htmlRefreshTimer = undefined;
       if (!this.view || this.hostAcked) return;
-      this.proc.log('Sidebar fallback html refresh');
-      this.view.webview.html = getWebviewHtml(this.view.webview, this.extensionUri, this.viewState());
+      this.proc.log("Sidebar fallback html refresh");
+      this.view.webview.html = getWebviewHtml(
+        this.view.webview,
+        this.extensionUri,
+        this.viewState(),
+      );
     }, 250);
   }
 
   /** Restores the SDK status shape from the lighter state mirrored into the webview. */
   private toSdkStatus(status?: SessionStatusState): SessionStatus {
-    if (!status || status.type === 'idle') return { type: 'idle' };
-    if (status.type === 'busy') return { type: 'busy' };
+    if (!status || status.type === "idle") return { type: "idle" };
+    if (status.type === "busy") return { type: "busy" };
     return {
-      type: 'retry',
+      type: "retry",
       attempt: status.attempt,
       message: status.message,
       next: status.next,
@@ -626,39 +663,39 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   }
 
   private extractOriginalContent(patch: string) {
-    return this.applyUnifiedDiff(patch, 'before');
+    return this.applyUnifiedDiff(patch, "before");
   }
 
   private extractModifiedContent(patch: string) {
-    return this.applyUnifiedDiff(patch, 'after');
+    return this.applyUnifiedDiff(patch, "after");
   }
 
   /** Reconstructs one side of a unified diff for the built-in VS Code diff view. */
-  private applyUnifiedDiff(patch: string, side: 'before' | 'after') {
+  private applyUnifiedDiff(patch: string, side: "before" | "after") {
     const lines = patch.split(/\r?\n/);
     const output: string[] = [];
 
     for (const line of lines) {
-      if (line.startsWith('--- ') || line.startsWith('+++ ') || line.startsWith('@@')) continue;
-      if (line.startsWith('\\ No newline at end of file')) continue;
+      if (line.startsWith("--- ") || line.startsWith("+++ ") || line.startsWith("@@")) continue;
+      if (line.startsWith("\\ No newline at end of file")) continue;
 
-      if (line.startsWith('+')) {
-        if (side === 'after') output.push(line.slice(1));
+      if (line.startsWith("+")) {
+        if (side === "after") output.push(line.slice(1));
         continue;
       }
 
-      if (line.startsWith('-')) {
-        if (side === 'before') output.push(line.slice(1));
+      if (line.startsWith("-")) {
+        if (side === "before") output.push(line.slice(1));
         continue;
       }
 
-      if (line.startsWith(' ')) {
+      if (line.startsWith(" ")) {
         output.push(line.slice(1));
         continue;
       }
     }
 
-    return output.join('\n');
+    return output.join("\n");
   }
 }
 

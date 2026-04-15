@@ -1,14 +1,20 @@
 /*
  * Tracks draft model, variant, and agent selection independently from session transcript state.
  */
-import type { Agent, Provider } from '@opencode-ai/sdk/v2/client';
-import type { SessionState } from '../../shared/models';
-import type { AgentOption, DraftModel, DraftOptions, DraftSelection, ModelOption } from '../../shared/models';
+import type { Agent, Provider } from "@opencode-ai/sdk/v2/client";
+import type { SessionState } from "../../shared/models";
+import type {
+  AgentOption,
+  DraftModel,
+  DraftOptions,
+  DraftSelection,
+  ModelOption,
+} from "../../shared/models";
 
 /** Parses `provider/model` strings from config defaults into structured draft values. */
 function parseModel(value?: string) {
   if (!value) return undefined;
-  const [providerID, modelID] = value.split('/');
+  const [providerID, modelID] = value.split("/");
   if (!providerID || !modelID) return undefined;
   return { providerID, modelID } satisfies DraftModel;
 }
@@ -28,7 +34,7 @@ function latestUser(session?: SessionState) {
   if (!session) return undefined;
   return [...session.messages]
     .map((item) => item.info)
-    .filter((item) => item.role === 'user')
+    .filter((item) => item.role === "user")
     .sort((a, b) => b.createdAt - a.createdAt)[0];
 }
 
@@ -43,33 +49,44 @@ export class DraftStore {
   get snapshot(): DraftOptions {
     return {
       models: this.providers.flatMap((provider) =>
-        Object.values(provider.models).map((model) => ({
-          id: model.id,
-          name: model.name,
-          providerID: provider.id,
-          providerName: provider.name,
-          variants: model.variants ? Object.keys(model.variants) : [],
-          contextLimit: model.limit.context,
-        } satisfies ModelOption)),
+        Object.values(provider.models).map(
+          (model) =>
+            ({
+              id: model.id,
+              name: model.name,
+              providerID: provider.id,
+              providerName: provider.name,
+              variants: model.variants ? Object.keys(model.variants) : [],
+              contextLimit: model.limit.context,
+            }) satisfies ModelOption,
+        ),
       ),
       providerDefaults: this.defaults,
-      agents: this.agents.map((agent) => ({
-        name: agent.name,
-        description: agent.description,
-        mode: agent.mode,
-        hidden: agent.hidden,
-        model: agent.model,
-        variant: agent.variant,
-      } satisfies AgentOption)),
+      agents: this.agents.map(
+        (agent) =>
+          ({
+            name: agent.name,
+            description: agent.description,
+            mode: agent.mode,
+            hidden: agent.hidden,
+            model: agent.model,
+            variant: agent.variant,
+          }) satisfies AgentOption,
+      ),
       selection: this.selection,
     };
   }
 
   /** Replaces the available provider and agent catalog, then revalidates the current selection. */
-  setCatalog(input: { providers: Provider[]; defaults: Record<string, string>; agents: Agent[]; defaultAgent?: string }) {
+  setCatalog(input: {
+    providers: Provider[];
+    defaults: Record<string, string>;
+    agents: Agent[];
+    defaultAgent?: string;
+  }) {
     this.providers = input.providers;
     this.defaults = input.defaults;
-    this.agents = input.agents.filter((item) => item.mode !== 'subagent' && !item.hidden);
+    this.agents = input.agents.filter((item) => item.mode !== "subagent" && !item.hidden);
     this.defaultAgent = input.defaultAgent;
     this.selection = this.normalize(this.selection);
   }
@@ -120,10 +137,10 @@ export class DraftStore {
       if (item) return item;
     }
 
-    const build = this.agents.find((agent) => agent.name === 'build');
+    const build = this.agents.find((agent) => agent.name === "build");
     if (build) return build;
 
-    const plan = this.agents.find((agent) => agent.name === 'plan');
+    const plan = this.agents.find((agent) => agent.name === "plan");
     if (plan) return plan;
 
     return this.agents[0];

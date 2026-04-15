@@ -34,7 +34,9 @@
   border-radius: 4px;
   gap: 6px;
   max-width: 100%;
-  transition: background-color 0.1s, border-color 0.1s;
+  transition:
+    background-color 0.1s,
+    border-color 0.1s;
 }
 
 .header-title-btn:hover {

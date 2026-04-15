@@ -1,12 +1,12 @@
 /*
  * Declares the JSON-safe DTOs shared across the extension host and sidebar webview.
  */
-import type { QuestionAnswer } from '@opencode-ai/sdk/v2/client';
+import type { QuestionAnswer } from "@opencode-ai/sdk/v2/client";
 
-export type ConnectionStatus = 'connected' | 'connecting' | 'disconnected' | 'error';
+export type ConnectionStatus = "connected" | "connecting" | "disconnected" | "error";
 
 export type ContextChip = {
-  type: 'file' | 'selection';
+  type: "file" | "selection";
   path: string;
   range?: { startLine: number; endLine: number };
   content?: string;
@@ -26,7 +26,7 @@ export type DraftSelection = {
 export type AgentOption = {
   name: string;
   description?: string;
-  mode: 'subagent' | 'primary' | 'all';
+  mode: "subagent" | "primary" | "all";
   hidden?: boolean;
   model?: DraftModel;
   variant?: string;
@@ -75,9 +75,9 @@ export type SessionSummary = {
 };
 
 export type SessionStatusState =
-  | { type: 'idle' }
-  | { type: 'busy' }
-  | { type: 'retry'; attempt: number; message: string; next: number };
+  | { type: "idle" }
+  | { type: "busy" }
+  | { type: "retry"; attempt: number; message: string; next: number };
 
 export type PermissionState = {
   id: string;
@@ -110,7 +110,7 @@ export type DiffState = {
   patch: string;
   additions: number;
   deletions: number;
-  status?: 'added' | 'deleted' | 'modified';
+  status?: "added" | "deleted" | "modified";
 };
 
 export type TodoState = {
@@ -122,7 +122,7 @@ export type TodoState = {
 export type MessageSummary = {
   id: string;
   sessionID: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   createdAt: number;
   completedAt?: number;
   parentID?: string;
@@ -134,7 +134,7 @@ export type MessageSummary = {
 export type TextPartState = {
   id: string;
   messageID: string;
-  type: 'text';
+  type: "text";
   text: string;
   synthetic?: boolean;
   ignored?: boolean;
@@ -143,14 +143,14 @@ export type TextPartState = {
 export type ReasoningPartState = {
   id: string;
   messageID: string;
-  type: 'reasoning';
+  type: "reasoning";
   text: string;
 };
 
 export type ToolPartState = {
   id: string;
   messageID: string;
-  type: 'tool';
+  type: "tool";
   tool: string;
   status: string;
   title?: string;
@@ -163,35 +163,35 @@ export type ToolPartState = {
 export type SubtaskPartState = {
   id: string;
   messageID: string;
-  type: 'subtask';
+  type: "subtask";
   description: string;
 };
 
 export type AgentPartState = {
   id: string;
   messageID: string;
-  type: 'agent';
+  type: "agent";
   name: string;
 };
 
 export type RetryPartState = {
   id: string;
   messageID: string;
-  type: 'retry';
+  type: "retry";
   message: string;
 };
 
 export type PatchPartState = {
   id: string;
   messageID: string;
-  type: 'patch';
+  type: "patch";
   files: string[];
 };
 
 export type CompactionPartState = {
   id: string;
   messageID: string;
-  type: 'compaction';
+  type: "compaction";
   auto: boolean;
   overflow?: boolean;
 };
@@ -199,7 +199,7 @@ export type CompactionPartState = {
 export type UnknownPartState = {
   id: string;
   messageID: string;
-  type: 'unknown';
+  type: "unknown";
 };
 
 export type TranscriptPartState =
@@ -238,7 +238,7 @@ export type PersistedWebviewState = {
   activeSessionId: string | null;
   draft: DraftSelection;
   contextChips: ContextChip[];
-  composerHeight?: number | 'auto';
+  composerHeight?: number | "auto";
   lastError?: string;
 };
 

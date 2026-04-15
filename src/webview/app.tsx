@@ -1,17 +1,32 @@
 /*
  * Implements the sidebar webview app, including host message handling and UI-local persisted state.
  */
-import { ErrorBoundary, For, Index, Show, createEffect, createSignal, onCleanup, onMount } from 'solid-js';
-import { createStore } from 'solid-js/store';
-import type { HostMessage, WebviewMessage } from '../shared/protocol';
-import type { ContextChip, DraftOptions, PersistedWebviewState, SessionState, TranscriptPartState } from '../shared/models';
-import { ChangedFiles } from './components/changed-files';
-import { Composer } from './components/composer';
-import { DraftControls } from './components/draft-controls';
-import { PermissionCard } from './components/permission-card';
-import { QuestionCard } from './components/question-card';
-import { SidebarHeader } from './components/sidebar-header';
-import { Transcript } from './components/transcript';
+import {
+  ErrorBoundary,
+  For,
+  Index,
+  Show,
+  createEffect,
+  createSignal,
+  onCleanup,
+  onMount,
+} from "solid-js";
+import { createStore } from "solid-js/store";
+import type { HostMessage, WebviewMessage } from "../shared/protocol";
+import type {
+  ContextChip,
+  DraftOptions,
+  PersistedWebviewState,
+  SessionState,
+  TranscriptPartState,
+} from "../shared/models";
+import { ChangedFiles } from "./components/changed-files";
+import { Composer } from "./components/composer";
+import { DraftControls } from "./components/draft-controls";
+import { PermissionCard } from "./components/permission-card";
+import { QuestionCard } from "./components/question-card";
+import { SidebarHeader } from "./components/sidebar-header";
+import { Transcript } from "./components/transcript";
 
 const ERROR_DISMISS_MS = 5000;
 const AUTO_SCROLL_THRESHOLD_PX = 48;
@@ -27,12 +42,12 @@ declare const acquireVsCodeApi: () => VsCodeApi;
 declare global {
   interface Window {
     __OPENCODE_INITIAL_STATE__?: {
-      connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
+      connectionStatus: "connected" | "connecting" | "disconnected" | "error";
       activeSessionId: string | null;
       sessions: SessionState[];
       draft: DraftOptions;
       contextChips: ContextChip[];
-      composerHeight?: number | 'auto';
+      composerHeight?: number | "auto";
       error?: string;
     };
   }
@@ -58,17 +73,17 @@ function enqueueHostMessage(message?: HostMessage) {
   }
 }
 
-window.addEventListener('message', (event: MessageEvent<HostMessage>) => {
+window.addEventListener("message", (event: MessageEvent<HostMessage>) => {
   enqueueHostMessage(event.data);
 });
 
 type State = {
-  connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error';
+  connectionStatus: "connected" | "connecting" | "disconnected" | "error";
   activeSessionId: string | null;
   sessions: SessionState[];
   draft: DraftOptions;
   contextChips: ContextChip[];
-  composerHeight: number | 'auto';
+  composerHeight: number | "auto";
   error?: string;
 };
 
@@ -80,7 +95,7 @@ const emptyDraft: DraftOptions = {
 };
 
 /** Clones draft selection objects before persisting them through the VS Code webview API. */
-function cloneDraft(draft: DraftOptions['selection']) {
+function cloneDraft(draft: DraftOptions["selection"]) {
   return {
     agent: draft.agent,
     model: draft.model
@@ -111,31 +126,33 @@ function cloneChips(chips: ContextChip[]) {
 /** Detects whether transcript scrolling should stay pinned to the latest content. */
 function isNearBottom(element?: HTMLElement) {
   if (!element) return true;
-  return element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX;
+  return (
+    element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_SCROLL_THRESHOLD_PX
+  );
 }
 
 /** Produces a compact, comparable signature for one transcript part. */
 function partSignature(part?: TranscriptPartState) {
-  if (!part) return 'none';
+  if (!part) return "none";
 
   switch (part.type) {
-    case 'text':
+    case "text":
       return `text:${part.id}:${part.text.length}:${part.synthetic ? 1 : 0}:${part.ignored ? 1 : 0}`;
-    case 'reasoning':
+    case "reasoning":
       return `reasoning:${part.id}:${part.text.length}`;
-    case 'tool':
-      return `tool:${part.id}:${part.tool}:${part.status}:${part.title ?? ''}:${part.questionReview?.length ?? 0}`;
-    case 'subtask':
+    case "tool":
+      return `tool:${part.id}:${part.tool}:${part.status}:${part.title ?? ""}:${part.questionReview?.length ?? 0}`;
+    case "subtask":
       return `subtask:${part.id}:${part.description}`;
-    case 'agent':
+    case "agent":
       return `agent:${part.id}:${part.name}`;
-    case 'retry':
+    case "retry":
       return `retry:${part.id}:${part.message.length}`;
-    case 'patch':
+    case "patch":
       return `patch:${part.id}:${part.files.length}`;
-    case 'compaction':
+    case "compaction":
       return `compaction:${part.id}:${part.auto ? 1 : 0}:${part.overflow ? 1 : 0}`;
-    case 'unknown':
+    case "unknown":
       return `unknown:${part.id}`;
   }
 }
@@ -151,19 +168,19 @@ function sessionContentSignature(session?: SessionState) {
     session.info.id,
     session.info.updatedAt,
     session.messages.length,
-    lastMessage?.info.id ?? '',
+    lastMessage?.info.id ?? "",
     lastMessage?.parts.length ?? 0,
-    lastMessage?.info.completedAt ?? '',
+    lastMessage?.info.completedAt ?? "",
     partSignature(lastPart),
     session.pendingPermissions.length,
     session.pendingQuestions.length,
     session.diffs.length,
-  ].join(':');
+  ].join(":");
 }
 
 /** Coordinates host messages, persisted UI state, and the sidebar render tree. */
 export function App() {
-  const [inputText, setInputText] = createSignal('');
+  const [inputText, setInputText] = createSignal("");
   const [pendingRevertMessageID, setPendingRevertMessageID] = createSignal<string | undefined>();
   const [pendingArchiveSessionID, setPendingArchiveSessionID] = createSignal<string | undefined>();
   const [isDragging, setIsDragging] = createSignal(false);
@@ -184,14 +201,14 @@ export function App() {
     showError(String(event.reason));
     reportAsync(`window.unhandledrejection ${String(event.reason)}`);
   };
-  
+
   const [state, setState] = createStore<State>({
-    connectionStatus: initial?.connectionStatus ?? 'disconnected',
+    connectionStatus: initial?.connectionStatus ?? "disconnected",
     activeSessionId: initialPersisted?.activeSessionId ?? initial?.activeSessionId ?? null,
     sessions: initial?.sessions ?? [],
     draft: initial?.draft ?? emptyDraft,
     contextChips: initialPersisted?.contextChips ?? initial?.contextChips ?? [],
-    composerHeight: initialPersisted?.composerHeight ?? initial?.composerHeight ?? 'auto',
+    composerHeight: initialPersisted?.composerHeight ?? initial?.composerHeight ?? "auto",
     error: initialPersisted?.lastError ?? initial?.error,
   });
 
@@ -200,7 +217,7 @@ export function App() {
   };
 
   const log = (message: string) => {
-    post({ type: 'debug.log', payload: { message } });
+    post({ type: "debug.log", payload: { message } });
   };
 
   const reportAsync = (message: string) => {
@@ -224,10 +241,10 @@ export function App() {
 
   const updateContextChips = (next: ContextChip[], syncHost = false) => {
     const cloned = cloneChips(next);
-    setState('contextChips', cloned);
+    setState("contextChips", cloned);
     persist({ contextChips: cloned });
     if (syncHost) {
-      post({ type: 'context.sync', payload: { chips: cloned } });
+      post({ type: "context.sync", payload: { chips: cloned } });
     }
   };
 
@@ -252,7 +269,7 @@ export function App() {
       clearTimeout(errorTimer);
       errorTimer = undefined;
     }
-    setState('error', undefined);
+    setState("error", undefined);
     persist({ lastError: undefined });
   };
 
@@ -262,24 +279,24 @@ export function App() {
       errorTimer = undefined;
     }
 
-    setState('error', message);
+    setState("error", message);
     persist({ lastError: message });
 
     if (!message) return;
 
     errorTimer = setTimeout(() => {
       errorTimer = undefined;
-      setState('error', undefined);
+      setState("error", undefined);
       persist({ lastError: undefined });
     }, ERROR_DISMISS_MS);
   };
 
   onMount(() => {
     stickToBottom = isNearBottom(appBodyRef);
-    log(`mount active=${state.activeSessionId ?? '<none>'} sessions=${state.sessions.length}`);
+    log(`mount active=${state.activeSessionId ?? "<none>"} sessions=${state.sessions.length}`);
 
-    window.addEventListener('error', handleWindowError);
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener("error", handleWindowError);
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
 
     const receive = (message: HostMessage) => {
       try {
@@ -291,7 +308,7 @@ export function App() {
         }, 0);
 
         switch (message.type) {
-          case 'bootstrap':
+          case "bootstrap":
             setState({
               connectionStatus: message.payload.connectionStatus,
               activeSessionId: message.payload.activeSessionId,
@@ -303,35 +320,37 @@ export function App() {
               activeSessionId: message.payload.activeSessionId,
               draft: cloneDraft(message.payload.draft.selection),
             });
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
-          case 'connection.state':
-            setState('connectionStatus', message.payload.status);
+          case "connection.state":
+            setState("connectionStatus", message.payload.status);
             showError(message.payload.error);
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
-          case 'session.snapshot':
-            setState('activeSessionId', message.payload.activeSessionId);
-            setState('sessions', message.payload.sessions);
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+          case "session.snapshot":
+            setState("activeSessionId", message.payload.activeSessionId);
+            setState("sessions", message.payload.sessions);
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
-          case 'draft.state':
-            setState('draft', message.payload);
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+          case "draft.state":
+            setState("draft", message.payload);
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
-          case 'context.preview':
+          case "context.preview":
             updateContextChips([...state.contextChips, message.payload]);
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
-          case 'error':
+          case "error":
             showError(message.payload.message);
-            post({ type: 'host.ack', payload: { messageType: message.type } });
+            post({ type: "host.ack", payload: { messageType: message.type } });
             return;
         }
       } catch (error) {
         console.error(error);
         showError(error instanceof Error ? error.message : String(error));
-        reportAsync(`webview message error: ${error instanceof Error ? error.stack ?? error.message : String(error)}`);
+        reportAsync(
+          `webview message error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+        );
       }
     };
 
@@ -341,8 +360,8 @@ export function App() {
     }
     onCleanup(() => {
       hostSubscribers.delete(receive);
-      window.removeEventListener('error', handleWindowError);
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener("error", handleWindowError);
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection);
       if (errorTimer) {
         clearTimeout(errorTimer);
         errorTimer = undefined;
@@ -353,15 +372,17 @@ export function App() {
       }
     });
 
-    log('send ready');
-    post({ type: 'ready' });
+    log("send ready");
+    post({ type: "ready" });
     // Keep the host mirror aligned with persisted local chip state for fallback reloads.
-    post({ type: 'context.sync', payload: { chips: chips() } });
+    post({ type: "context.sync", payload: { chips: chips() } });
   });
 
   createEffect(() => {
     const sessionID = state.activeSessionId;
-    const session = sessionID ? state.sessions.find((item) => item.info.id === sessionID) : undefined;
+    const session = sessionID
+      ? state.sessions.find((item) => item.info.id === sessionID)
+      : undefined;
     const signature = sessionContentSignature(session);
 
     if (!sessionID || !session || !signature) {
@@ -382,17 +403,18 @@ export function App() {
     previousActiveSessionSignature = signature;
   });
 
-  const activeSession = () => state.sessions.find((session) => session.info.id === state.activeSessionId);
+  const activeSession = () =>
+    state.sessions.find((session) => session.info.id === state.activeSessionId);
 
   const restoreInputFromMessage = (messageID: string) => {
     const session = activeSession();
     if (!session) return;
 
     const message = session.messages.find((item) => item.info.id === messageID);
-    if (!message || message.info.role !== 'user') return;
+    if (!message || message.info.role !== "user") return;
 
-    const textPart = message.parts.find((part) => part.type === 'text');
-    if (textPart && 'text' in textPart && typeof textPart.text === 'string') {
+    const textPart = message.parts.find((part) => part.type === "text");
+    if (textPart && "text" in textPart && typeof textPart.text === "string") {
       setInputText(textPart.text);
     }
   };
@@ -411,7 +433,7 @@ export function App() {
     if (!sessionID || !messageID) return;
 
     restoreInputFromMessage(messageID);
-    post({ type: 'turn.revert', payload: { sessionID, messageID } });
+    post({ type: "turn.revert", payload: { sessionID, messageID } });
     setPendingRevertMessageID(undefined);
   };
 
@@ -427,7 +449,7 @@ export function App() {
     const sessionID = pendingArchiveSessionID();
     if (!sessionID) return;
 
-    post({ type: 'session.archive', payload: { sessionID } });
+    post({ type: "session.archive", payload: { sessionID } });
     setPendingArchiveSessionID(undefined);
   };
 
@@ -435,19 +457,19 @@ export function App() {
     e.preventDefault();
     setIsDragging(true);
 
-    const composerContainer = appShellRef?.querySelector('.composer-container') as HTMLElement;
+    const composerContainer = appShellRef?.querySelector(".composer-container") as HTMLElement;
     if (!composerContainer) return;
 
     // Temporarily force height to 0 to read the intrinsic minimum height
     const originalHeight = composerContainer.style.height;
     const originalTransition = composerContainer.style.transition;
-    composerContainer.style.transition = 'none';
-    composerContainer.style.height = '0px';
-    
+    composerContainer.style.transition = "none";
+    composerContainer.style.height = "0px";
+
     // Read the height forced by min-height: min-content
     let absoluteMinHeight = composerContainer.offsetHeight;
     if (absoluteMinHeight < 60) absoluteMinHeight = 100; // Safe fallback
-    
+
     composerContainer.style.height = originalHeight;
 
     const startY = e.clientY;
@@ -459,54 +481,63 @@ export function App() {
     const onMouseMove = (e: MouseEvent) => {
       const delta = startY - e.clientY;
       let newHeight = startHeight + delta;
-      
+
       if (newHeight < absoluteMinHeight) newHeight = absoluteMinHeight;
       if (newHeight > absoluteMaxHeight) newHeight = absoluteMaxHeight;
 
-      setState('composerHeight', newHeight);
+      setState("composerHeight", newHeight);
     };
 
     const onMouseUp = () => {
       setIsDragging(false);
       composerContainer.style.transition = originalTransition;
       persist({ composerHeight: state.composerHeight });
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
     };
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   };
 
   const archiveSessionLabel = () => {
     const sessionID = pendingArchiveSessionID();
-    if (!sessionID) return 'this chat';
+    if (!sessionID) return "this chat";
 
     const session = state.sessions.find((item) => item.info.id === sessionID);
-    if (!session) return 'this chat';
+    if (!session) return "this chat";
 
     const title = session.info.title.trim();
-    return title || 'this chat';
+    return title || "this chat";
   };
 
   return (
-    <ErrorBoundary fallback={(error) => <div class="error-banner">Render error: {String(error)}</div>}>
+    <ErrorBoundary
+      fallback={(error) => <div class="error-banner">Render error: {String(error)}</div>}
+    >
       <div class="app-shell" ref={appShellRef}>
         <SidebarHeader
           connectionStatus={state.connectionStatus}
           sessions={state.sessions}
           activeSessionId={state.activeSessionId}
           draft={state.draft}
-          onNewSession={() => post({ type: 'session.new' })}
-          onSelectSession={(sessionID) => post({ type: 'session.switch', payload: { sessionID } })}
+          onNewSession={() => post({ type: "session.new" })}
+          onSelectSession={(sessionID) => post({ type: "session.switch", payload: { sessionID } })}
           onRequestArchiveSession={requestArchive}
-          onCompactSession={(sessionID) => post({ type: 'session.compact', payload: { sessionID } })}
+          onCompactSession={(sessionID) =>
+            post({ type: "session.compact", payload: { sessionID } })
+          }
         />
 
         <Show when={state.error}>
           <div class="error-banner">
             <span class="error-banner-text">{state.error}</span>
-            <button class="error-banner-close" type="button" onClick={clearError} aria-label="Dismiss error">
+            <button
+              class="error-banner-close"
+              type="button"
+              onClick={clearError}
+              aria-label="Dismiss error"
+            >
               ×
             </button>
           </div>
@@ -523,7 +554,7 @@ export function App() {
             messages={activeSession()?.messages ?? []}
             onOpenFile={(path) => {
               if (!state.activeSessionId) return;
-              post({ type: 'file.open', payload: { sessionID: state.activeSessionId, path } });
+              post({ type: "file.open", payload: { sessionID: state.activeSessionId, path } });
             }}
             onRevert={requestRevert}
           />
@@ -533,8 +564,10 @@ export function App() {
               {(permission) => (
                 <PermissionCard
                   permission={permission}
-                  onApprove={(requestID) => post({ type: 'permission.approve', payload: { requestID } })}
-                  onDeny={(requestID) => post({ type: 'permission.deny', payload: { requestID } })}
+                  onApprove={(requestID) =>
+                    post({ type: "permission.approve", payload: { requestID } })
+                  }
+                  onDeny={(requestID) => post({ type: "permission.deny", payload: { requestID } })}
                 />
               )}
             </For>
@@ -543,7 +576,9 @@ export function App() {
               {(question) => (
                 <QuestionCard
                   question={question()}
-                  onAnswer={(requestID, answers) => post({ type: 'question.answer', payload: { requestID, answers } })}
+                  onAnswer={(requestID, answers) =>
+                    post({ type: "question.answer", payload: { requestID, answers } })
+                  }
                 />
               )}
             </Index>
@@ -554,20 +589,26 @@ export function App() {
               diffs={activeSession()?.diffs ?? []}
               onOpenDiff={(path) => {
                 if (!state.activeSessionId) return;
-                post({ type: 'diff.open', payload: { sessionID: state.activeSessionId, path } });
+                post({ type: "diff.open", payload: { sessionID: state.activeSessionId, path } });
               }}
             />
           </Show>
         </div>
 
         <div class="resizer" classList={{ dragging: isDragging() }} onMouseDown={startDragging} />
-        
-        <div class="composer-container" style={{ height: state.composerHeight === 'auto' ? 'auto' : `${state.composerHeight}px` }}>
+
+        <div
+          class="composer-container"
+          style={{ height: state.composerHeight === "auto" ? "auto" : `${state.composerHeight}px` }}
+        >
           <Composer
             text={inputText()}
             onTextChange={setInputText}
             onSend={(text) => {
-              post({ type: 'prompt.send', payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) } });
+              post({
+                type: "prompt.send",
+                payload: { text, attachments: chips(), draft: cloneDraft(state.draft.selection) },
+              });
               updateContextChips([], true);
             }}
             contextChips={state.contextChips}
@@ -575,13 +616,13 @@ export function App() {
               const next = state.contextChips.filter((_, chipIndex) => chipIndex !== index);
               updateContextChips(next, true);
             }}
-            onAttachFile={() => post({ type: 'context.attachActiveFile' })}
-            onAttachSelection={() => post({ type: 'context.attachSelection' })}
+            onAttachFile={() => post({ type: "context.attachActiveFile" })}
+            onAttachSelection={() => post({ type: "context.attachSelection" })}
             todos={activeSession()?.todos ?? []}
-            isBusy={activeSession()?.status?.type === 'busy'}
+            isBusy={activeSession()?.status?.type === "busy"}
             onInterrupt={() => {
               if (state.activeSessionId) {
-                post({ type: 'session.abort', payload: { sessionID: state.activeSessionId } });
+                post({ type: "session.abort", payload: { sessionID: state.activeSessionId } });
               }
             }}
           >
@@ -591,9 +632,9 @@ export function App() {
               selection={state.draft.selection}
               onChange={(draft) => {
                 const next = cloneDraft(draft);
-                setState('draft', 'selection', next);
+                setState("draft", "selection", next);
                 persist({ draft: next });
-                post({ type: 'draft.set', payload: next });
+                post({ type: "draft.set", payload: next });
               }}
             />
           </Composer>
@@ -613,7 +654,8 @@ export function App() {
                 Confirm Revert
               </div>
               <div class="confirm-dialog-body" id="revert-dialog-description">
-                Later messages will be removed from the conversation and this prompt will be copied back into the composer.
+                Later messages will be removed from the conversation and this prompt will be copied
+                back into the composer.
               </div>
               <div class="confirm-dialog-actions">
                 <button class="btn btn-secondary btn-small" type="button" onClick={cancelRevert}>

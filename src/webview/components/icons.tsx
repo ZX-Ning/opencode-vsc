@@ -1,7 +1,7 @@
 /*
  * Defines the small inline SVG icon set used throughout the sidebar UI.
  */
-import { Component, JSX } from 'solid-js';
+import { Component, JSX } from "solid-js";
 
 type IconProps = JSX.SvgSVGAttributes<SVGSVGElement> & { size?: number | string };
 

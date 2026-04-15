@@ -1,10 +1,10 @@
 /*
  * Renders the agent, model, and variant selectors for the composer draft state.
  */
-import { For, createSignal, type Component } from 'solid-js';
-import type { AgentOption, DraftSelection, ModelOption } from '../../shared/models';
-import { ChevronDown } from './icons';
-import { Dropdown } from './dropdown';
+import { For, createSignal, type Component } from "solid-js";
+import type { AgentOption, DraftSelection, ModelOption } from "../../shared/models";
+import { ChevronDown } from "./icons";
+import { Dropdown } from "./dropdown";
 
 type Props = {
   models: ModelOption[];
@@ -15,7 +15,12 @@ type Props = {
 
 /** Returns the variant list for the currently selected model. */
 function variants(models: ModelOption[], selection: DraftSelection) {
-  return models.find((item) => item.providerID === selection.model?.providerID && item.id === selection.model?.modelID)?.variants ?? [];
+  return (
+    models.find(
+      (item) =>
+        item.providerID === selection.model?.providerID && item.id === selection.model?.modelID,
+    )?.variants ?? []
+  );
 }
 
 type DraftSelectOption = {
@@ -29,7 +34,10 @@ type DraftSelectOption = {
 
 /** Normalizes labels into a loose searchable form for dropdown filtering. */
 function normalizeSearchText(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 /** Splits normalized search strings into ordered terms for ranking. */
@@ -40,7 +48,7 @@ function tokenizeSearchText(value: string) {
 
 /** Removes spaces entirely so compact fuzzy matching still works for short queries. */
 function compactSearchText(value: string) {
-  return normalizeSearchText(value).replace(/\s+/g, '');
+  return normalizeSearchText(value).replace(/\s+/g, "");
 }
 
 /** Supports lightweight fuzzy matching by checking whether query characters appear in order. */
@@ -79,16 +87,24 @@ function scoreOption(option: DraftSelectOption, query: string) {
   if (primary.startsWith(normalizedQuery)) score = Math.max(score, 1100);
   if (targets.some((target) => target.startsWith(normalizedQuery))) score = Math.max(score, 1000);
 
-  const primaryPrefixMatches = queryTerms.every((term) => primaryTokens.some((token) => token.startsWith(term)));
+  const primaryPrefixMatches = queryTerms.every((term) =>
+    primaryTokens.some((token) => token.startsWith(term)),
+  );
   if (primaryPrefixMatches) score = Math.max(score, 950);
 
-  const tokenPrefixMatches = queryTerms.every((term) => tokens.some((token) => token.startsWith(term)));
+  const tokenPrefixMatches = queryTerms.every((term) =>
+    tokens.some((token) => token.startsWith(term)),
+  );
   if (tokenPrefixMatches) score = Math.max(score, 900);
 
-  const substringMatches = queryTerms.every((term) => targets.some((target) => target.includes(term)));
+  const substringMatches = queryTerms.every((term) =>
+    targets.some((target) => target.includes(term)),
+  );
   if (substringMatches) score = Math.max(score, 700);
 
-  const subsequenceMatches = targets.some((target) => matchesSubsequence(compactQuery, target.replace(/\s+/g, '')));
+  const subsequenceMatches = targets.some((target) =>
+    matchesSubsequence(compactQuery, target.replace(/\s+/g, "")),
+  );
   if (subsequenceMatches) score = Math.max(score, 500);
 
   if (score < 0) return -1;
@@ -133,7 +149,7 @@ function DraftSelect(props: {
   disabled?: boolean;
   searchable?: boolean;
 }) {
-  const [searchQuery, setSearchQuery] = createSignal('');
+  const [searchQuery, setSearchQuery] = createSignal("");
   const selectedOption = () => props.options.find((option) => option.value === props.value);
   let listRef: HTMLDivElement | undefined;
 
@@ -158,11 +174,11 @@ function DraftSelect(props: {
   return (
     <Dropdown
       containerClass="draft-dropdown-container"
-      menuClass={`draft-dropdown-menu ${props.searchable ? 'draft-dropdown-searchable' : ''}`}
+      menuClass={`draft-dropdown-menu ${props.searchable ? "draft-dropdown-searchable" : ""}`}
       disabled={props.disabled}
-      initialScroll={props.searchable ? 'top' : 'active'}
+      initialScroll={props.searchable ? "top" : "active"}
       onOpen={() => {
-        setSearchQuery('');
+        setSearchQuery("");
       }}
       trigger={(triggerProps) => (
         <button
@@ -170,8 +186,8 @@ function DraftSelect(props: {
           disabled={triggerProps.disabled}
           onClick={() => triggerProps.toggle()}
           title={props.label}
-          aria-expanded={triggerProps['aria-expanded']}
-          aria-haspopup={triggerProps['aria-haspopup']}
+          aria-expanded={triggerProps["aria-expanded"]}
+          aria-haspopup={triggerProps["aria-haspopup"]}
           ref={triggerProps.ref}
         >
           <span class="draft-dropdown-text">
@@ -200,9 +216,9 @@ function DraftSelect(props: {
           )}
           <div class="dropdown-list" ref={listRef}>
             <button
-              class={`dropdown-item ${props.value === '' ? 'dropdown-item-active' : ''}`}
+              class={`dropdown-item ${props.value === "" ? "dropdown-item-active" : ""}`}
               onClick={() => {
-                props.onChange('');
+                props.onChange("");
                 close();
               }}
             >
@@ -211,7 +227,7 @@ function DraftSelect(props: {
             <For each={filteredOptions()}>
               {(opt) => (
                 <button
-                  class={`dropdown-item ${props.value === opt.value ? 'dropdown-item-active' : ''}`}
+                  class={`dropdown-item ${props.value === opt.value ? "dropdown-item-active" : ""}`}
                   onClick={() => {
                     props.onChange(opt.value);
                     close();
@@ -252,15 +268,22 @@ export const DraftControls: Component<Props> = (props) => {
       <DraftSelect
         label="Agent"
         defaultLabel="Agent"
-        value={props.selection.agent ?? ''}
-        options={props.agents.map(a => ({ label: a.name, value: a.name }))}
+        value={props.selection.agent ?? ""}
+        options={props.agents.map((a) => ({ label: a.name, value: a.name }))}
         onChange={(v) => props.onChange({ ...props.selection, agent: v || undefined })}
       />
 
       <DraftSelect
         label="Model"
         defaultLabel="Default"
-        value={props.selection.model ? JSON.stringify({ providerID: props.selection.model.providerID, modelID: props.selection.model.modelID }) : ''}
+        value={
+          props.selection.model
+            ? JSON.stringify({
+                providerID: props.selection.model.providerID,
+                modelID: props.selection.model.modelID,
+              })
+            : ""
+        }
         options={models()}
         searchable={true}
         onChange={(value) => {
@@ -283,9 +306,9 @@ export const DraftControls: Component<Props> = (props) => {
       <DraftSelect
         label="Variant"
         defaultLabel="Default"
-        value={props.selection.variant ?? ''}
+        value={props.selection.variant ?? ""}
         disabled={variants(props.models, props.selection).length === 0}
-        options={variants(props.models, props.selection).map(v => ({ label: v, value: v }))}
+        options={variants(props.models, props.selection).map((v) => ({ label: v, value: v }))}
         onChange={(v) => props.onChange({ ...props.selection, variant: v || undefined })}
       />
     </div>

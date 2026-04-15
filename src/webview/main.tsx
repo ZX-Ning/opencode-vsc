@@ -1,11 +1,11 @@
 /*
  * Mounts the Solid sidebar application into the webview root element.
  */
-import { render } from 'solid-js/web';
-import { App } from './app';
-import './main.css';
+import { render } from "solid-js/web";
+import { App } from "./app";
+import "./main.css";
 
-const root = document.getElementById('root');
+const root = document.getElementById("root");
 if (root) {
-    render(() => <App />, root);
+  render(() => <App />, root);
 }
