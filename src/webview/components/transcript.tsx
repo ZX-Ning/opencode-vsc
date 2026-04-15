@@ -60,6 +60,7 @@ const KNOWN_FILE_EXTENSIONS = new Set([
 type Props = {
   messages: TranscriptMessage[];
   onOpenFile: (path: string) => void;
+  onOpenRawMessage: (messageID: string) => void;
   onRevert: (messageID: string) => void;
 };
 
@@ -333,11 +334,22 @@ export const Transcript: Component<Props> = (props) => {
                   </For>
                 </div>
               </Show>
-              <Show when={user}>
-                <button class="bubble-action" onClick={() => props.onRevert(message.info.id)}>
-                  Revert to here
+              <div class="bubble-actions">
+                <button
+                  class="bubble-action"
+                  onClick={() => props.onOpenRawMessage(message.info.id)}
+                >
+                  Raw
                 </button>
-              </Show>
+                <Show when={user}>
+                  <button
+                    class="bubble-action bubble-action-right"
+                    onClick={() => props.onRevert(message.info.id)}
+                  >
+                    Revert to here
+                  </button>
+                </Show>
+              </div>
             </div>
           );
         }}

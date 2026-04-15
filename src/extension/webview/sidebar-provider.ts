@@ -26,6 +26,7 @@ import { Client } from "../opencode/client";
 import { EventStream } from "../opencode/event-stream";
 import { ProcessManager } from "../opencode/process-manager";
 import { SessionStore } from "../opencode/session-store";
+import { RawMessageDocumentProvider } from "../vscode/raw-message-document-provider";
 import { WorkspaceContext } from "../vscode/workspace-context";
 import { getWebviewHtml } from "./html";
 import { DraftStore } from "./draft-store";
@@ -49,6 +50,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private readonly client: Client,
     private readonly events: EventStream,
     private readonly store: SessionStore,
+    private readonly rawMessages: RawMessageDocumentProvider,
     private readonly context: vscode.ExtensionContext,
   ) {
     this.proc.on("statusChange", () => {
@@ -155,6 +157,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       case "session.archive":
         await this.archiveSession(msg.payload.sessionID);
+        return;
+      case "message.raw.open":
+        await this.openRawMessage(msg.payload.sessionID, msg.payload.messageID);
         return;
       case "draft.set":
         this.draft.setSelection(msg.payload);
@@ -612,6 +617,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     });
 
     await vscode.commands.executeCommand("vscode.diff", before.uri, after.uri, title, {
+      preview: false,
+    });
+  }
+
+  /** Opens the full raw SDK message payload in a readonly virtual JSON document. */
+  private async openRawMessage(sessionID: string, messageID: string) {
+    const session = this.store.getSession(sessionID);
+    if (!session) return;
+
+    const message = await this.client.getMessage(sessionID, messageID, session.info.directory);
+    if (!message) {
+      throw new Error(`Message not found: ${messageID}`);
+    }
+
+    const uri = this.rawMessages.uri(sessionID, messageID);
+    this.rawMessages.update(uri, `${JSON.stringify(message, null, 2)}\n`);
+
+    let document = await vscode.workspace.openTextDocument(uri);
+    if (document.languageId !== "json") {
+      document = await vscode.languages.setTextDocumentLanguage(document, "json");
+    }
+
+    await vscode.window.showTextDocument(document, {
       preview: false,
     });
   }

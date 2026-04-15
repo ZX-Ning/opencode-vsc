@@ -44,6 +44,13 @@
   gap: 8px;
 }
 
+.bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
 .bubble-thinking {
   display: flex;
   flex-direction: column;
@@ -148,7 +155,6 @@
 }
 
 .bubble-action {
-  align-self: flex-start;
   background: transparent;
   border: 0;
   color: inherit;
@@ -156,4 +162,8 @@
   padding: 0;
   font-size: 12px;
   opacity: 0.75;
+}
+
+.bubble-action-right {
+  margin-left: auto;
 }

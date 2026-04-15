@@ -6,6 +6,7 @@ import { Client } from "./opencode/client";
 import { EventStream } from "./opencode/event-stream";
 import { ProcessManager } from "./opencode/process-manager";
 import { SessionStore } from "./opencode/session-store";
+import { RawMessageDocumentProvider } from "./vscode/raw-message-document-provider";
 import { SidebarProvider } from "./webview/sidebar-provider";
 
 /**
@@ -16,11 +17,24 @@ export function activate(context: vscode.ExtensionContext) {
   const client = new Client(proc);
   const store = new SessionStore();
   const events = new EventStream(proc, client);
-  const sidebar = new SidebarProvider(context.extensionUri, proc, client, events, store, context);
+  const rawMessages = new RawMessageDocumentProvider();
+  const sidebar = new SidebarProvider(
+    context.extensionUri,
+    proc,
+    client,
+    events,
+    store,
+    rawMessages,
+    context,
+  );
 
   proc.log("Extension activate");
 
   context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(
+      RawMessageDocumentProvider.scheme,
+      rawMessages,
+    ),
     vscode.window.registerWebviewViewProvider("opencode.sidebar", sidebar),
   );
 

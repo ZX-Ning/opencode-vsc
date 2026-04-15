@@ -119,6 +119,19 @@ export class Client {
     return res.data ?? [];
   }
 
+  async getMessage(sessionID: string, messageID: string, directory?: string) {
+    const sdk = this.sdk;
+    if (!sdk) return;
+    this.proc.log(
+      `SDK getMessage session=${sessionID} message=${messageID} directory=${directory ?? "<none>"}`,
+    );
+    const res = await sdk.session.message({ sessionID, messageID, directory });
+    this.proc.log(
+      `SDK getMessage ok session=${sessionID} message=${messageID} found=${!!res.data}`,
+    );
+    return res.data;
+  }
+
   async getDiff(sessionID: string, directory?: string, messageID?: string) {
     const sdk = this.sdk;
     if (!sdk) return [] as SnapshotFileDiff[];

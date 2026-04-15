@@ -556,6 +556,13 @@ export function App() {
               if (!state.activeSessionId) return;
               post({ type: "file.open", payload: { sessionID: state.activeSessionId, path } });
             }}
+            onOpenRawMessage={(messageID) => {
+              if (!state.activeSessionId) return;
+              post({
+                type: "message.raw.open",
+                payload: { sessionID: state.activeSessionId, messageID },
+              });
+            }}
             onRevert={requestRevert}
           />
 
