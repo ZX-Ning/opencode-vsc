@@ -62,14 +62,28 @@ export class ProcessManager extends EventEmitter {
     this.err = undefined;
 
     try {
-      this.portValue = await this.findPort(3000);
-
       const cfg = vscode.workspace.getConfiguration('opencode');
+      const configuredServerUrl = cfg.get<string>('server.url');
+      let preferredPort = 13001;
+
+      if (configuredServerUrl) {
+        try {
+          const url = new URL(configuredServerUrl);
+          const port = Number.parseInt(url.port, 10);
+          if (Number.isInteger(port) && port > 0 && port <= 65_535) {
+            preferredPort = port;
+          }
+        } catch {
+          // Ignore invalid configured URL and keep the default managed-server port.
+        }
+      }
+
+      this.portValue = await this.findPort(preferredPort);
       const configured = cfg.get<string>('cli.path') || 'opencode';
       const requireAuth = cfg.get<boolean>('server.requireAuth', true);
       const cli = await this.resolveCliPath(configured);
       const cwd = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-      this.pwdValue = requireAuth ? this.passwordForServer() : '';
+      this.pwdValue = requireAuth ? randomBytes(24).toString('base64url') : '';
 
       this.out.appendLine(`Using opencode CLI: ${cli}`);
       this.out.appendLine(`Managed server auth: ${requireAuth ? 'enabled' : 'disabled'}`);
@@ -84,6 +98,12 @@ export class ProcessManager extends EventEmitter {
       });
 
       this.proc.on('error', (err) => {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          this.fail(
+            `OpenCode CLI '${cli}' was not found. Ensure it is available in PATH or set 'OpenCode › Cli: Path' to the full binary path.`,
+          );
+          return;
+        }
         this.fail(`Failed to spawn opencode: ${err.message}`);
       });
 
@@ -102,13 +122,15 @@ export class ProcessManager extends EventEmitter {
       });
 
       const ok = await this.waitForHealth();
-      if (!ok) throw new Error('Server failed to become healthy before timeout');
+      if (!ok) throw new Error(this.err ?? 'Server failed to become healthy before timeout');
 
       this.setState('running');
       this.out.appendLine(`OpenCode server ready on ${this.baseUrl}`);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      this.fail(msg);
+      if (this.state !== 'error') {
+        this.fail(msg);
+      }
       throw err;
     }
   }
@@ -141,11 +163,6 @@ export class ProcessManager extends EventEmitter {
     this.setState('error');
   }
 
-  /** Generates a per-process password when managed server auth is enabled. */
-  private passwordForServer() {
-    return randomBytes(24).toString('base64url');
-  }
-
   /** Scans a small port range so the managed server can bind locally without conflicts. */
   private async findPort(start: number) {
     const open = (port: number) =>
@@ -166,56 +183,24 @@ export class ProcessManager extends EventEmitter {
     return port;
   }
 
-  /** Resolves either an absolute CLI path or a PATH entry from user configuration. */
-  private async resolveCliPath(input: string) {
-    const expanded = this.expandHome(input.trim());
-    const looksAbsolute = path.isAbsolute(expanded) || expanded.includes(path.sep);
+  /** Expands home and validates configured CLI file paths before spawn. */
+  private resolveCliPath(input: string) {
+    const trimmed = input.trim();
+    const expanded = trimmed === '~' ? os.homedir() : trimmed.startsWith(`~${path.sep}`) ? path.join(os.homedir(), trimmed.slice(2)) : trimmed;
+    const looksLikePath = path.isAbsolute(expanded) || expanded.includes(path.sep);
 
-    if (looksAbsolute) {
-      if (!fs.existsSync(expanded)) {
-        throw new Error(`OpenCode CLI not found at configured path: ${expanded}`);
-      }
-      return expanded;
+    if (looksLikePath && !fs.existsSync(expanded)) {
+      throw new Error(`OpenCode CLI not found at configured path: ${expanded}`);
     }
 
-    const found = await this.which(expanded);
-    if (!found) {
-      throw new Error(
-        `OpenCode CLI '${expanded}' was not found in PATH. Set 'OpenCode › Cli: Path' to the full binary path.`,
-      );
-    }
-    return found;
-  }
-
-  /** Expands a leading `~` so configured CLI paths work across machines. */
-  private expandHome(input: string) {
-    if (input === '~') return os.homedir();
-    if (input.startsWith(`~${path.sep}`)) return path.join(os.homedir(), input.slice(2));
-    return input;
-  }
-
-  /** Looks up a binary in PATH using the platform's native command. */
-  private which(bin: string) {
-    return new Promise<string | undefined>((resolve) => {
-      const cmd = process.platform === 'win32' ? 'where' : 'which';
-      cp.execFile(cmd, [bin], (err, stdout) => {
-        if (err) {
-          resolve(undefined);
-          return;
-        }
-        const first = stdout
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .find(Boolean);
-        resolve(first || undefined);
-      });
-    });
+    return expanded;
   }
 
   /** Polls the server health endpoint until startup finishes or times out. */
   private async waitForHealth(timeout = 30_000) {
     const start = Date.now();
     while (Date.now() - start < timeout) {
+      if (this.state === 'error') return false;
       try {
         const res = await fetch(`${this.baseUrl}/global/health`, {
           headers: this.authHeader ? { Authorization: this.authHeader } : undefined,

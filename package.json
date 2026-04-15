@@ -55,7 +55,7 @@
             "properties": {
                 "opencode.server.url": {
                     "type": "string",
-                    "default": "http://localhost:3000",
+                    "default": "http://localhost:13001",
                     "description": "URL of the OpenCode server"
                 },
                 "opencode.cli.path": {

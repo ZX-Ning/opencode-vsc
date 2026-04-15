@@ -45,19 +45,24 @@ export function activate(context: vscode.ExtensionContext) {
     }),
   );
 
-  void proc.start().catch((err) => {
-    const msg = err instanceof Error ? err.message : String(err);
-    void vscode.window
-      .showErrorMessage(`Failed to start OpenCode server: ${msg}`, 'Open CLI Path Setting', 'Open Output')
-      .then(async (choice) => {
-        if (choice === 'Open CLI Path Setting') {
-          await vscode.commands.executeCommand('opencode.openCliPathSettings');
-        }
-        if (choice === 'Open Output') {
-          await vscode.commands.executeCommand('workbench.action.output.toggleOutput');
-        }
-      });
-  });
+  void (async () => {
+    try {
+      await proc.start();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const choice = await vscode.window.showErrorMessage(
+        `Failed to start OpenCode server: ${msg}`,
+        'Open CLI Path Setting',
+        'Open Output',
+      );
+      if (choice === 'Open CLI Path Setting') {
+        await vscode.commands.executeCommand('opencode.openCliPathSettings');
+      }
+      if (choice === 'Open Output') {
+        await vscode.commands.executeCommand('workbench.action.output.toggleOutput');
+      }
+    }
+  })();
 
   context.subscriptions.push({
     dispose: () => {

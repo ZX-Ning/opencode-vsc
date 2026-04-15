@@ -4,6 +4,7 @@
 import {
   createOpencodeClient,
   type Agent,
+  type FilePartInput,
   type Message,
   type Part,
   type PermissionRequest,
@@ -12,6 +13,7 @@ import {
   type QuestionRequest,
   type Session,
   type SnapshotFileDiff,
+  type TextPartInput,
   type Todo,
 } from '@opencode-ai/sdk/v2/client';
 import * as path from 'path';
@@ -197,30 +199,29 @@ export class Client {
 
     // Match OpenCode's own attach-file flow: send file references and let the server-side
     // Read tool expand text files and selected line ranges.
-    const parts = [
-      { type: 'text' as const, text },
-      ...attachments.map((chip) => {
-        const filePath = absolutePath(directory, chip);
-        const url = pathToFileURL(filePath);
+    const parts: Array<TextPartInput | FilePartInput> = [{ type: 'text', text }];
 
-        if (chip.range) {
-          url.searchParams.set('start', String(chip.range.startLine));
-          url.searchParams.set('end', String(chip.range.endLine));
-        }
+    for (const chip of attachments) {
+      const filePath = absolutePath(directory, chip);
+      const url = pathToFileURL(filePath);
 
-        return {
+      if (chip.range) {
+        url.searchParams.set('start', String(chip.range.startLine));
+        url.searchParams.set('end', String(chip.range.endLine));
+      }
+
+      parts.push({
+        type: 'file' as const,
+        mime: 'text/plain',
+        filename: chip.range ? selectionLabel(chip) : path.basename(filePath),
+        url: url.href,
+        source: {
           type: 'file' as const,
-          mime: 'text/plain',
-          filename: chip.range ? selectionLabel(chip) : path.basename(filePath),
-          url: url.href,
-          source: {
-            type: 'file' as const,
-            path: chip.path,
-            text: sourceText(),
-          },
-        };
-      }),
-    ];
+          path: chip.path,
+          text: sourceText(),
+        },
+      });
+    }
 
     try {
       const res = await sdk.session.promptAsync({
