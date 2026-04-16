@@ -4,7 +4,7 @@
 import DOMPurify from "dompurify";
 import { marked } from "marked";
 import { For, Show, type Component } from "solid-js";
-import type { TranscriptMessage, TranscriptPartState } from "../../shared/models";
+import type { ContextChip, TranscriptMessage, TranscriptPartState } from "../../shared/models";
 
 const FILE_TOKEN_PATTERN = /(?:\.{1,2}[\\/])?[A-Za-z0-9_./\\-]+(?::\d+(?::\d+)?)?/g;
 const STANDALONE_FILE_NAMES = new Set([
@@ -70,21 +70,27 @@ type ContentSegment = {
   content: string;
 };
 
-/** Filters out synthetic user text that is mostly transport noise rather than useful transcript content. */
-function visibleSyntheticUserText(text: string) {
-  return (
-    text.startsWith("Called the Read tool with the following input:") ||
-    text.startsWith("Read tool failed to read ") ||
-    text.startsWith("Reading MCP resource:") ||
-    text.startsWith("Failed to read MCP resource ")
-  );
+type AttachmentLink = {
+  id: string;
+  label: string;
+  path: string;
+};
+
+function messageText(message: TranscriptMessage) {
+  return message.parts
+    .flatMap((part) => {
+      if (part.type !== "text") return [] as string[];
+      if (part.ignored || part.synthetic || !part.text.trim()) return [] as string[];
+      return [part.text];
+    })
+    .join("\n");
 }
 
 /** Converts transcript parts into the human-readable text blocks shown in each bubble. */
-function partText(part: TranscriptPartState, isUser: boolean) {
+function partText(part: TranscriptPartState, user: boolean) {
   if (part.type === "text") {
     if (part.ignored) return undefined;
-    if (isUser && part.synthetic && !visibleSyntheticUserText(part.text)) return undefined;
+    if (user && part.synthetic) return undefined;
     return part.text;
   }
 
@@ -107,43 +113,118 @@ function partText(part: TranscriptPartState, isUser: boolean) {
 
 /** Groups consecutive markdown parts together while keeping reasoning as separate sections. */
 function contentSegments(message: TranscriptMessage) {
-  const isUser = message.info.role === "user";
+  const user = message.info.role === "user";
   const segments: ContentSegment[] = [];
-  let markdownParts: string[] = [];
-  let markdownID: string | undefined;
+  let parts: string[] = [];
+  let id: string | undefined;
 
-  const flushMarkdown = () => {
-    const content = markdownParts.filter((value) => value.trim()).join("\n\n");
+  const flush = () => {
+    const content = parts.filter((value) => value.trim()).join("\n\n");
     if (content) {
       segments.push({
-        id: markdownID ?? `markdown-${segments.length}`,
+        id: id ?? `markdown-${segments.length}`,
         type: "markdown",
         content,
       });
     }
 
-    markdownParts = [];
-    markdownID = undefined;
+    parts = [];
+    id = undefined;
   };
 
   for (const part of message.parts) {
     if (part.type === "reasoning") {
-      flushMarkdown();
+      flush();
       if (part.text.trim()) {
         segments.push({ id: part.id, type: "reasoning", content: part.text });
       }
       continue;
     }
 
-    const content = partText(part, isUser);
+    const content = partText(part, user);
     if (!content?.trim()) continue;
 
-    markdownID ??= part.id;
-    markdownParts.push(content);
+    id ??= part.id;
+    parts.push(content);
   }
 
-  flushMarkdown();
+  flush();
   return segments;
+}
+
+function normalizeMention(value: string) {
+  return value.replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function baseName(value: string) {
+  const parts = normalizeMention(value).split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? normalizeMention(value);
+}
+
+function mentionSet(text: string) {
+  const mentions = new Set<string>();
+  const pattern = /@([^\s]+)/g;
+
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+    const { candidate } = stripTrailingPunctuation(match[1] ?? "");
+    const value = normalizeMention(candidate);
+    if (!value) continue;
+    mentions.add(value);
+  }
+
+  return mentions;
+}
+
+function chipRefs(chip: ContextChip, unique: boolean) {
+  const path = normalizeMention(chip.path);
+  const refs = [path];
+
+  if (chip.range) {
+    const range =
+      chip.range.startLine === chip.range.endLine
+        ? `#L${chip.range.startLine}`
+        : `#L${chip.range.startLine}-${chip.range.endLine}`;
+    refs[0] += range;
+    if (unique) refs.push(`${baseName(path)}${range}`);
+    return refs;
+  }
+
+  if (unique) refs.push(baseName(path));
+  return refs;
+}
+
+function mentioned(chip: ContextChip, refs: string[], mentions: Set<string>) {
+  for (const mention of mentions) {
+    for (const ref of refs) {
+      if (mention === ref) return true;
+      if (!chip.range && mention.startsWith(`${ref}#L`)) return true;
+    }
+  }
+
+  return false;
+}
+
+/** Formats attached files and selections into clickable transcript links when not already mentioned inline. */
+function attachmentLinks(message: TranscriptMessage) {
+  const counts = new Map<string, number>();
+  for (const chip of message.attachments) {
+    const name = baseName(chip.path);
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+
+  const mentions = mentionSet(messageText(message));
+
+  return message.attachments.flatMap((chip, index) => {
+    const unique = (counts.get(baseName(chip.path)) ?? 0) === 1;
+    if (mentioned(chip, chipRefs(chip, unique), mentions)) return [] as AttachmentLink[];
+    return [
+      {
+        id: `${message.info.id}-attachment-${index}`,
+        label: chipLabel(chip),
+        path: chipPath(chip),
+      },
+    ];
+  });
 }
 
 /** Provides a stable fallback label while a message has no visible renderable parts yet. */
@@ -208,6 +289,17 @@ function normalizeFileReference(token: string) {
   return normalized;
 }
 
+function chipLabel(chip: ContextChip) {
+  if (!chip.range) return chip.path;
+  if (chip.range.startLine === chip.range.endLine) return `${chip.path}#L${chip.range.startLine}`;
+  return `${chip.path}#L${chip.range.startLine}-L${chip.range.endLine}`;
+}
+
+function chipPath(chip: ContextChip) {
+  if (!chip.range) return chip.path;
+  return `${chip.path}:${chip.range.startLine}`;
+}
+
 /** Builds a button element so file references can route through the host instead of real hyperlinks. */
 function createFileLink(doc: Document, label: string, path: string) {
   const button = doc.createElement("button");
@@ -241,7 +333,7 @@ function linkifyFileReferences(html: string) {
     const fragment = doc.createDocumentFragment();
     const pattern = new RegExp(FILE_TOKEN_PATTERN.source, "g");
     let last = 0;
-    let hasLink = false;
+    let linked = false;
 
     for (let match = pattern.exec(value); match; match = pattern.exec(value)) {
       const full = match[0];
@@ -257,10 +349,10 @@ function linkifyFileReferences(html: string) {
       fragment.append(createFileLink(doc, candidate, path));
       if (trailing) fragment.append(trailing);
       last = end;
-      hasLink = true;
+      linked = true;
     }
 
-    if (!hasLink) continue;
+    if (!linked) continue;
     if (last < value.length) {
       fragment.append(value.slice(last));
     }
@@ -303,15 +395,31 @@ export const Transcript: Component<Props> = (props) => {
           const segments = contentSegments(message);
           const user = message.info.role === "user";
           const running = message.info.role === "assistant" && !message.info.completedAt;
+          const attachments = user ? attachmentLinks(message) : [];
 
           return (
             <div class={`bubble ${user ? "bubble-user" : "bubble-assistant"}`}>
               <div class="bubble-role">{user ? "You" : "OpenCode"}</div>
               <Show
-                when={segments.length > 0}
+                when={segments.length > 0 || attachments.length > 0}
                 fallback={<div class="bubble-text">{fallbackLabel(message, running)}</div>}
               >
                 <div class="bubble-content">
+                  <Show when={attachments.length > 0}>
+                    <div class="bubble-attachments">
+                      <For each={attachments}>
+                        {(item) => (
+                          <button
+                            class="link-button transcript-file-link bubble-attachment-link"
+                            onClick={() => props.onOpenFile(item.path)}
+                            title={item.label}
+                          >
+                            {item.label}
+                          </button>
+                        )}
+                      </For>
+                    </div>
+                  </Show>
                   <For each={segments}>
                     {(segment) =>
                       segment.type === "reasoning" ? (

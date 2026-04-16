@@ -44,6 +44,20 @@
   gap: 8px;
 }
 
+.bubble-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bubble-attachment-link {
+  max-width: 100%;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bubble-actions {
   display: flex;
   align-items: center;
