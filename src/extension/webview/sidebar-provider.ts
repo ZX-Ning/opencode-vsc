@@ -26,6 +26,7 @@ import { Client } from "../opencode/client";
 import { EventStream } from "../opencode/event-stream";
 import { ProcessManager } from "../opencode/process-manager";
 import { SessionStore } from "../opencode/session-store";
+import { DiffDocumentProvider } from "../vscode/diff-document-provider";
 import { RawMessageDocumentProvider } from "../vscode/raw-message-document-provider";
 import { WorkspaceContext } from "../vscode/workspace-context";
 import { getWebviewHtml } from "./html";
@@ -51,6 +52,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     private readonly events: EventStream,
     private readonly store: SessionStore,
     private readonly rawMessages: RawMessageDocumentProvider,
+    private readonly diffDocuments: DiffDocumentProvider,
     private readonly context: vscode.ExtensionContext,
   ) {
     this.proc.on("statusChange", () => {
@@ -609,14 +611,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }
 
     const title = `${path.basename(rel)} (OpenCode Diff)`;
-    const before = await vscode.workspace.openTextDocument({
-      content: this.extractOriginalContent(diff.patch),
-    });
-    const after = await vscode.workspace.openTextDocument({
-      content: this.extractModifiedContent(diff.patch),
-    });
+    const beforeUri = this.diffDocuments.uri(sessionID, "before", rel);
+    const afterUri = this.diffDocuments.uri(sessionID, "after", rel);
 
-    await vscode.commands.executeCommand("vscode.diff", before.uri, after.uri, title, {
+    this.diffDocuments.update(beforeUri, this.extractOriginalContent(diff.patch));
+    this.diffDocuments.update(afterUri, this.extractModifiedContent(diff.patch));
+
+    await vscode.commands.executeCommand("vscode.diff", beforeUri, afterUri, title, {
       preview: false,
     });
   }
