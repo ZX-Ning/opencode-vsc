@@ -176,7 +176,7 @@ function DraftSelect(props: {
       containerClass="draft-dropdown-container"
       menuClass={`draft-dropdown-menu ${props.searchable ? "draft-dropdown-searchable" : ""}`}
       disabled={props.disabled}
-      initialScroll={props.searchable ? "top" : "active"}
+      initialScroll="active"
       onOpen={() => {
         setSearchQuery("");
       }}
