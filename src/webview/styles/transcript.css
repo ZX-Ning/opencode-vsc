@@ -20,6 +20,10 @@
   color: var(--vscode-button-foreground);
 }
 
+.bubble-user .link-button {
+  color: inherit;
+}
+
 .bubble-assistant {
   background: var(--vscode-editor-background);
   color: var(--vscode-editor-foreground);
