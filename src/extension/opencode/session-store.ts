@@ -17,6 +17,7 @@ import type {
   UserMessage,
 } from "@opencode-ai/sdk/v2/client";
 import type {
+  ContextChip,
   DiffState,
   MessageSummary,
   PermissionState,
@@ -249,6 +250,45 @@ function toTodo(todo: Todo): TodoState {
     content: todo.content,
     status: todo.status,
     priority: todo.priority,
+  };
+}
+
+/** Rebuilds user attachment chips from SDK file parts so revert can restore the composer state. */
+function toContextChip(part: Extract<Part, { type: "file" }>): ContextChip | undefined {
+  const source = part.source;
+  if (!source || !("path" in source) || typeof source.path !== "string" || !source.path) {
+    return undefined;
+  }
+
+  let range: ContextChip["range"] | undefined;
+  if ("range" in source && source.range) {
+    const startLine = source.range.start.line + 1;
+    const rawEndLine =
+      source.range.end.character === 0 ? source.range.end.line : source.range.end.line + 1;
+    range = {
+      startLine,
+      endLine: Math.max(startLine, rawEndLine),
+    };
+  }
+
+  if (!range) {
+    try {
+      const url = new URL(part.url);
+      const startLine = Number(url.searchParams.get("start"));
+      const endLine = Number(url.searchParams.get("end") ?? startLine);
+      if (Number.isInteger(startLine) && startLine > 0) {
+        range = {
+          startLine,
+          endLine: Number.isInteger(endLine) && endLine >= startLine ? endLine : startLine,
+        };
+      }
+    } catch {}
+  }
+
+  return {
+    type: range ? "selection" : "file",
+    path: source.path,
+    range,
   };
 }
 
@@ -633,6 +673,10 @@ export class SessionStore extends EventEmitter {
     const messages: TranscriptMessage[] = rawMessages.map((info) => ({
       info: toMessageSummary(info),
       parts: sortById(session.parts.get(info.id) ?? []).map(toPart),
+      attachments: sortById(session.parts.get(info.id) ?? [])
+        .filter((part): part is Extract<Part, { type: "file" }> => part.type === "file")
+        .map(toContextChip)
+        .filter((chip): chip is ContextChip => !!chip),
     }));
 
     return {

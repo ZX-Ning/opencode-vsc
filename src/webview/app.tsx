@@ -406,7 +406,7 @@ export function App() {
   const activeSession = () =>
     state.sessions.find((session) => session.info.id === state.activeSessionId);
 
-  const restoreInputFromMessage = (messageID: string) => {
+  const restoreComposerFromMessage = (messageID: string) => {
     const session = activeSession();
     if (!session) return;
 
@@ -414,9 +414,10 @@ export function App() {
     if (!message || message.info.role !== "user") return;
 
     const textPart = message.parts.find((part) => part.type === "text");
-    if (textPart && "text" in textPart && typeof textPart.text === "string") {
-      setInputText(textPart.text);
-    }
+    setInputText(
+      textPart && "text" in textPart && typeof textPart.text === "string" ? textPart.text : "",
+    );
+    updateContextChips(message.attachments, true);
   };
 
   const requestRevert = (messageID: string) => {
@@ -432,7 +433,7 @@ export function App() {
     const messageID = pendingRevertMessageID();
     if (!sessionID || !messageID) return;
 
-    restoreInputFromMessage(messageID);
+    restoreComposerFromMessage(messageID);
     post({ type: "turn.revert", payload: { sessionID, messageID } });
     setPendingRevertMessageID(undefined);
   };

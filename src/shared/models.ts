@@ -216,6 +216,7 @@ export type TranscriptPartState =
 export type TranscriptMessage = {
   info: MessageSummary;
   parts: TranscriptPartState[];
+  attachments: ContextChip[];
 };
 
 export type SessionState = {
