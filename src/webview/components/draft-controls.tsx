@@ -151,6 +151,12 @@ function DraftSelect(props: {
 }) {
   const [searchQuery, setSearchQuery] = createSignal("");
   const selectedOption = () => props.options.find((option) => option.value === props.value);
+  const triggerTitle = () => {
+    const option = selectedOption();
+    const primary = option?.primaryLabel ?? option?.label;
+    if (!primary) return props.defaultLabel;
+    return option?.secondaryLabel ? `${primary} / ${option.secondaryLabel}` : primary;
+  };
   let listRef: HTMLDivElement | undefined;
 
   const resetListScroll = () => {
@@ -185,7 +191,7 @@ function DraftSelect(props: {
           class="draft-dropdown-btn"
           disabled={triggerProps.disabled}
           onClick={() => triggerProps.toggle()}
-          title={props.label}
+          title={triggerTitle()}
           aria-expanded={triggerProps["aria-expanded"]}
           aria-haspopup={triggerProps["aria-haspopup"]}
           ref={triggerProps.ref}
