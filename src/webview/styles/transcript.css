@@ -110,7 +110,7 @@
 .markdown-body p,
 .markdown-body ul,
 .markdown-body ol,
-.markdown-body pre,
+.markdown-code-wrapper,
 .markdown-body blockquote,
 .markdown-body h1,
 .markdown-body h2,
@@ -138,11 +138,42 @@
   background: color-mix(in srgb, currentColor 10%, transparent);
 }
 
+.markdown-code-wrapper {
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  overflow: hidden;
+}
+
+.markdown-code-wrapper pre {
+  margin: 0;
+}
+
+.markdown-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.markdown-code-lang {
+  font-size: 11px;
+  opacity: 0.75;
+  font-family: var(--vscode-editor-font-family, var(--font));
+}
+
+.markdown-code-copy {
+  opacity: 0.6;
+}
+
+.markdown-code-copy:hover {
+  opacity: 1;
+}
+
 .markdown-body pre {
   overflow-x: auto;
   padding: 10px;
-  border-radius: 6px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  margin: 0;
 }
 
 .markdown-body pre code {

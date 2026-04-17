@@ -323,8 +323,7 @@ function createFileLink(doc: Document, label: string, path: string) {
 }
 
 /** Rewrites plain-text file references inside rendered markdown into host-routed buttons. */
-function linkifyFileReferences(html: string) {
-  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, "text/html");
+function linkifyFileReferences(doc: Document) {
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       const value = node.textContent;
@@ -370,11 +369,41 @@ function linkifyFileReferences(html: string) {
     }
     node.replaceWith(fragment);
   }
-
-  return doc.body.innerHTML;
 }
 
-/** Parses markdown, sanitizes it, and then post-processes the HTML for file links. */
+/** Wraps code blocks with a header containing the language and a copy button. */
+function addCodeBlockCopyButtons(doc: Document) {
+  const pres = doc.querySelectorAll("pre");
+  for (const pre of pres) {
+    const code = pre.querySelector("code");
+    const lang = code ? code.className.replace("language-", "") : "";
+
+    const wrapper = doc.createElement("div");
+    wrapper.className = "markdown-code-wrapper";
+
+    const header = doc.createElement("div");
+    header.className = "markdown-code-header";
+
+    const langLabel = doc.createElement("span");
+    langLabel.className = "markdown-code-lang";
+    langLabel.textContent = lang;
+
+    const copyBtn = doc.createElement("button");
+    copyBtn.className = "bubble-action markdown-code-copy";
+    copyBtn.type = "button";
+    copyBtn.title = "Copy code";
+    copyBtn.textContent = "Copy";
+
+    header.appendChild(langLabel);
+    header.appendChild(copyBtn);
+
+    pre.parentNode?.insertBefore(wrapper, pre);
+    wrapper.appendChild(header);
+    wrapper.appendChild(pre);
+  }
+}
+
+/** Parses markdown, sanitizes it, and then post-processes the HTML for file links and code blocks. */
 function renderMarkdown(source: string) {
   const raw = marked.parse(source) as string;
   const safe = DOMPurify.sanitize(raw, {
@@ -383,20 +412,39 @@ function renderMarkdown(source: string) {
     ALLOWED_URI_REGEXP: /^$/,
   });
 
-  return linkifyFileReferences(safe);
+  const doc = new DOMParser().parseFromString(`<body>${safe}</body>`, "text/html");
+  linkifyFileReferences(doc);
+  addCodeBlockCopyButtons(doc);
+  return doc.body.innerHTML;
 }
 
-/** Handles delegated clicks on generated file-link buttons inside transcript HTML. */
-function handleFileLinkClick(event: MouseEvent, onOpenFile: (path: string) => void) {
+/** Handles delegated clicks on generated interactive elements inside transcript HTML. */
+function handleMarkdownClick(
+  event: MouseEvent,
+  onOpenFile: (path: string) => void,
+  onCopyMessage: (text: string) => void,
+) {
   const target = event.target;
   if (!(target instanceof HTMLElement)) return;
 
-  const button = target.closest("[data-file-path]");
-  const path = button instanceof HTMLElement ? button.dataset.filePath : undefined;
-  if (!path) return;
+  const fileLink = target.closest("[data-file-path]");
+  const path = fileLink instanceof HTMLElement ? fileLink.dataset.filePath : undefined;
+  if (path) {
+    event.preventDefault();
+    onOpenFile(path);
+    return;
+  }
 
-  event.preventDefault();
-  onOpenFile(path);
+  const copyBtn = target.closest(".markdown-code-copy");
+  if (copyBtn instanceof HTMLElement) {
+    event.preventDefault();
+    const wrapper = copyBtn.closest(".markdown-code-wrapper");
+    const pre = wrapper?.querySelector("pre");
+    if (pre) {
+      onCopyMessage(pre.textContent ?? "");
+    }
+    return;
+  }
 }
 
 export const Transcript: Component<Props> = (props) => {
@@ -453,14 +501,18 @@ export const Transcript: Component<Props> = (props) => {
                           <div
                             class="bubble-text bubble-thinking-text markdown-body"
                             innerHTML={renderMarkdown(segment.content)}
-                            onClick={(event) => handleFileLinkClick(event, props.onOpenFile)}
+                            onClick={(event) =>
+                              handleMarkdownClick(event, props.onOpenFile, props.onCopyMessage)
+                            }
                           />
                         </section>
                       ) : (
                         <div
                           class="bubble-text markdown-body"
                           innerHTML={renderMarkdown(segment.content)}
-                          onClick={(event) => handleFileLinkClick(event, props.onOpenFile)}
+                          onClick={(event) =>
+                            handleMarkdownClick(event, props.onOpenFile, props.onCopyMessage)
+                          }
                         />
                       )
                     }
