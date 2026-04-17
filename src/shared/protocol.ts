@@ -60,6 +60,7 @@ export type WebviewMessage =
   | { type: "session.switch"; payload: { sessionID: string } }
   | { type: "session.archive"; payload: { sessionID: string } }
   | { type: "message.raw.open"; payload: { sessionID: string; messageID: string } }
+  | { type: "message.copy"; payload: { markdown: string } }
   | { type: "draft.set"; payload: DraftSelection }
   | { type: "context.sync"; payload: { chips: ContextChip[] } }
   | { type: "prompt.send"; payload: SendPromptPayload }

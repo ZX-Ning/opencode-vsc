@@ -60,6 +60,7 @@ const KNOWN_FILE_EXTENSIONS = new Set([
 type Props = {
   messages: TranscriptMessage[];
   onOpenFile: (path: string) => void;
+  onCopyMessage: (markdown: string) => void;
   onOpenRawMessage: (messageID: string) => void;
   onRevert: (messageID: string) => void;
 };
@@ -150,6 +151,17 @@ function contentSegments(message: TranscriptMessage) {
 
   flush();
   return segments;
+}
+
+/** Rebuilds the visible assistant bubble content into markdown for clipboard copy. */
+function copyMarkdown(segments: ContentSegment[]) {
+  return segments
+    .map((segment) =>
+      segment.type === "reasoning" ? `**Thinking**\n\n${segment.content}` : segment.content,
+    )
+    .filter((segment) => segment.trim())
+    .join("\n\n")
+    .trim();
 }
 
 function normalizeMention(value: string) {
@@ -396,10 +408,23 @@ export const Transcript: Component<Props> = (props) => {
           const user = message.info.role === "user";
           const running = message.info.role === "assistant" && !message.info.completedAt;
           const attachments = user ? attachmentLinks(message) : [];
+          const copiedMarkdown = !user ? copyMarkdown(segments) : "";
 
           return (
             <div class={`bubble ${user ? "bubble-user" : "bubble-assistant"}`}>
-              <div class="bubble-role">{user ? "You" : "OpenCode"}</div>
+              <div class="bubble-header">
+                <div class="bubble-role">{user ? "You" : "OpenCode"}</div>
+                <Show when={copiedMarkdown}>
+                  <button
+                    class="bubble-action bubble-action-right"
+                    type="button"
+                    title="Copy markdown"
+                    onClick={() => props.onCopyMessage(copiedMarkdown)}
+                  >
+                    Copy
+                  </button>
+                </Show>
+              </div>
               <Show
                 when={segments.length > 0 || attachments.length > 0}
                 fallback={<div class="bubble-text">{fallbackLabel(message, running)}</div>}

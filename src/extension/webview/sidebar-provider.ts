@@ -163,6 +163,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       case "message.raw.open":
         await this.openRawMessage(msg.payload.sessionID, msg.payload.messageID);
         return;
+      case "message.copy":
+        await vscode.env.clipboard.writeText(msg.payload.markdown);
+        return;
       case "draft.set":
         this.draft.setSelection(msg.payload);
         this.postDraft();

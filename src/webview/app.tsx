@@ -557,6 +557,9 @@ export function App() {
               if (!state.activeSessionId) return;
               post({ type: "file.open", payload: { sessionID: state.activeSessionId, path } });
             }}
+            onCopyMessage={(markdown) => {
+              post({ type: "message.copy", payload: { markdown } });
+            }}
             onOpenRawMessage={(messageID) => {
               if (!state.activeSessionId) return;
               post({
