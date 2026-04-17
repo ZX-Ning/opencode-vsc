@@ -40,6 +40,8 @@ In `src/extension/webview/html.ts`:
 
 ### Webview startup
 
+The webview entry point is `src/webview/main.tsx`, which mounts the Solid app.
+
 In `src/webview/app.tsx`:
 
 - `acquireVsCodeApi()` is called once
@@ -92,3 +94,11 @@ Always verify:
 4. prompt sending still works during streaming output
 5. removed context chips do not reappear after sidebar reload or fallback refresh
 6. the sidebar remains responsive with multiple sessions in the workspace
+7. archive session flow works (session removed from list, next session selected)
+8. revert message flow works (confirmation modal, transcript updated)
+9. file links in transcript open the correct file in the editor
+10. diff viewing opens correct before/after content in VS Code's diff editor
+11. raw message viewing opens formatted JSON as a readonly document
+12. todo panel shows progress and updates during task runs
+13. permission card approve/deny actions complete without errors
+14. question card answer flow works (single-select, multi-select, and custom text)

@@ -87,24 +87,28 @@ Do not hardcode colors unless there is no suitable token and the case is narrow.
 
 Main files:
 
-- `src/webview/app.tsx`
-- `src/webview/main.css`
-- `src/webview/styles/*.css`
-- `src/webview/components/sidebar-header.tsx`
-- `src/webview/components/draft-controls.tsx`
-- `src/webview/components/dropdown.tsx`
-- `src/webview/components/transcript.tsx`
-- `src/webview/components/composer.tsx`
-- `src/webview/components/changed-files.tsx`
-- `src/webview/components/permission-card.tsx`
-- `src/webview/components/question-card.tsx`
+- `src/webview/main.tsx` — entry point, mounts the Solid app into `#root`
+- `src/webview/app.tsx` — root `App` component, host message handling, state management
+- `src/webview/main.css` — CSS entry point, imports all style modules
+- `src/webview/styles/*.css` — focused style files split by UI area
+- `src/webview/components/sidebar-header.tsx` — session dropdown, status row, connection indicator
+- `src/webview/components/draft-controls.tsx` — agent, model, and variant selector dropdowns with fuzzy search
+- `src/webview/components/dropdown.tsx` — generic dropdown primitive with keyboard navigation and overlay dismiss
+- `src/webview/components/transcript.tsx` — message bubbles, markdown rendering, file link detection, reasoning blocks
+- `src/webview/components/composer.tsx` — text input, attachment chips, todo panel, send/interrupt controls
+- `src/webview/components/changed-files.tsx` — collapsible changed files list with additions/deletions counts
+- `src/webview/components/permission-card.tsx` — permission request card with approve/deny actions
+- `src/webview/components/question-card.tsx` — question card with single/multi-select options and custom text input
+- `src/webview/components/icons.tsx` — inline SVG icon components: `ChevronDown`, `Plus`, `Paperclip`, `Square`, `Send`, `Archive`
 
 General layout:
 
-- header at top
-- error banner if needed
-- scrollable body with transcript, cards, and changed files
-- resizable composer container anchored at bottom of the column
+- header at top (session dropdown + status row)
+- error banner if needed (dismissible, auto-dismiss after 5 seconds)
+- scrollable body with transcript, permission/question cards, and changed files
+- drag-resizable composer container anchored at bottom of the column (height persisted across reloads)
+- revert confirmation modal (triggered from transcript message actions)
+- archive confirmation modal (triggered from session dropdown)
 
 ## Responsibilities Split
 
@@ -170,10 +174,13 @@ Transcript readability is the most important content concern.
 Prefer:
 
 - distinct user and assistant surfaces
-- clear treatment for reasoning or thinking blocks
+- clear treatment for reasoning or thinking blocks (collapsible)
 - good whitespace for long responses
 - pre-wrapped text for generated content
 - clear affordance for file links, revert, and changed files
+- file references detected and linkified as clickable buttons (posting `file.open` to the host)
+- per-message actions: "Raw" (view raw JSON) and "Revert to here" (user messages only)
+- user message attachment links shown below the role label when not already mentioned inline
 
 Avoid:
 
@@ -188,10 +195,18 @@ The composer is the primary action control.
 It should:
 
 - always feel easy to find
-- work well with keyboard input
-- make attachments visible but not dominant
+- work well with keyboard input (Enter to send, Shift+Enter for newline)
+- make attachments visible but not dominant (chip list above the textarea)
+- show a collapsible todo panel with progress summary and active task preview when tasks exist
 - keep todo summary, draft controls, and interrupt state legible in narrow widths
-- keep send behavior predictable
+- keep send behavior predictable (send button when idle, stop/interrupt button when busy)
+- support drag-resizable height with persisted state across sidebar reloads
+
+The composer toolbar currently contains:
+
+- attach dropdown (Active File and Selection options via the generic `Dropdown` component)
+- draft controls slot (model, agent, variant selectors)
+- send or interrupt button
 
 ### Permission and question cards
 
@@ -232,6 +247,19 @@ The current CSS already uses a mobile-like collapse for draft controls below a n
 3. Reuse existing class patterns instead of inventing many one-off styles.
 4. Keep visual language consistent across cards, buttons, and list items.
 5. Use spacing and typography before adding more borders or color.
+
+Current style file organization:
+
+- `styles/base.css` — reset, body, `#root`
+- `styles/app-shell.css` — `.app-shell` flex layout, modals, error banner, resizer, composer container
+- `styles/shared.css` — button variants, link buttons, utility classes
+- `styles/dropdown.css` — generic dropdown overlay, menu, list items
+- `styles/sidebar-header.css` — header layout, session dropdown, status row, connection dots
+- `styles/transcript.css` — message bubbles, markdown body, thinking blocks, file links, actions
+- `styles/cards.css` — permission and question card layout
+- `styles/changed-files.css` — collapsible file list, addition/deletion counts
+- `styles/composer.css` — textarea, toolbar, chips, todo panel
+- `styles/draft-controls.css` — inline draft selectors, searchable dropdown
 
 ## Accessibility Expectations
 

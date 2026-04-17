@@ -52,6 +52,11 @@ For message, state, or UI changes verify all of these:
 9. Model, variant, and agent controls still behave correctly.
 10. Archive, compact, revert, and open-diff flows still work.
 11. Removed context chips do not reappear after reloading or reopening the sidebar.
+12. Raw message viewing opens formatted JSON as a readonly document.
+13. File links in the transcript open the correct file in the editor.
+14. Todo panel shows and updates during task runs.
+15. Permission card approve and deny actions work.
+16. Question card answer flow works (single-select, multi-select, custom text).
 
 ## Workspace Root Rules
 
@@ -62,6 +67,16 @@ The extension should target:
 3. `OPENCODE_WORKSPACE_ROOT` if explicitly set
 
 It should not silently fall back to the extension repository.
+
+This is implemented in `SidebarProvider.root()`.
+
+## Extension Configuration
+
+Three settings affect runtime behavior (defined in `package.json`):
+
+- `opencode.server.url` (string, default `http://localhost:13001`) — the preferred server URL; the port is parsed as the starting port for the managed server
+- `opencode.cli.path` (string, default `opencode`) — path to the `opencode` CLI binary; supports `~` expansion and is validated before spawning
+- `opencode.server.requireAuth` (boolean, default `true`) — when true, the managed server starts with HTTP basic auth using a random password set via `OPENCODE_SERVER_PASSWORD`
 
 ## State And Performance Rules
 
@@ -90,3 +105,5 @@ If the sidebar looks broken:
 4. confirm the webview acknowledges host messages if that path is in use
 5. confirm bootstrap is not loading too much state
 6. confirm snapshots are not being posted on every tiny streaming delta
+7. check the `OpenCode Server` output channel for process and connection errors
+8. confirm the CLI binary exists at the configured path and is executable
