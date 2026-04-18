@@ -122,6 +122,7 @@ export const Composer: Component<ComposerProps> = (props) => {
           value={props.text}
           onInput={(e) => props.onTextChange(e.currentTarget.value)}
           onKeyDown={(e) => {
+            if (e.isComposing || e.keyCode === 229) return;
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               handleSend();

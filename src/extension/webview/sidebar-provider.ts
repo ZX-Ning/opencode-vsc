@@ -79,6 +79,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView: vscode.WebviewView,
     context: vscode.WebviewViewResolveContext<unknown>,
   ) {
+    this.clearHtmlRefreshTimer();
     this.view = webviewView;
     this.ready = false;
     this.hostAcked = false;
@@ -109,6 +110,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     webviewView.onDidDispose(() => {
       if (this.view === webviewView) {
         this.proc.log("Sidebar disposed");
+        this.clearHtmlRefreshTimer();
         this.view = undefined;
         this.ready = false;
       }
@@ -145,12 +147,14 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       case "host.ack":
         this.hostAcked = true;
+        this.clearHtmlRefreshTimer();
         this.proc.log(`Sidebar host ack ${msg.payload.messageType}`);
         return;
       case "session.new":
         await this.createSession();
         return;
       case "session.switch":
+        if (!this.store.getSession(msg.payload.sessionID)) return;
         this.store.activeSessionId = msg.payload.sessionID;
         this.syncDraftFromSession();
         this.postDraft();
@@ -416,7 +420,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     return {
       info,
-      status: this.toSdkStatus(this.store.getSession(sessionID)?.status),
       messages: (messages ?? []).map((item) => ({ info: item.info, parts: item.parts })),
       todos: todos ?? [],
       pendingPermissions: (permissions ?? []).filter((item) => item.sessionID === sessionID),
@@ -457,7 +460,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const full = await this.loadSession(sessionID, session.info.directory);
     this.withSuspendedStorePosts(() => {
       this.store.upsertSession(full.info, {
-        status: full.status,
         todos: full.todos,
         pendingPermissions: full.pendingPermissions,
         pendingQuestions: full.pendingQuestions,
@@ -559,41 +561,22 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const session = this.store.getSession(sessionID);
     if (!session) return;
 
-    const match = rel.match(/^(.*?)(?::(\d+)(?::(\d+))?)?$/);
-    const rawPath = match?.[1] ?? rel;
-    const line = match?.[2];
-    const column = match?.[3];
-    const root = fs.realpathSync(session.info.directory);
-    const normalized = rawPath.replace(/\\/g, "/").replace(/^\.\//, "");
-    if (!normalized) throw new Error("File path is empty");
-    if (normalized.startsWith("../") || path.isAbsolute(normalized)) {
-      throw new Error(`File path is outside the session root: ${rel}`);
-    }
-
-    const resolved = path.resolve(root, normalized);
-    if (!fs.existsSync(resolved)) {
-      throw new Error(`File not found: ${rawPath}`);
-    }
-
-    const target = fs.realpathSync(resolved);
-    const relative = path.relative(root, target);
-    if (relative.startsWith("..") || path.isAbsolute(relative)) {
-      throw new Error(`File path is outside the session root: ${rel}`);
-    }
+    const reference = this.parseFileReference(rel);
+    const target = this.resolveSessionPath(session, reference.path).target;
 
     const stats = fs.statSync(target);
     if (!stats.isFile()) {
-      throw new Error(`Not a file: ${rawPath}`);
+      throw new Error(`Not a file: ${reference.path}`);
     }
 
     const uri = vscode.Uri.file(target);
     const document = await vscode.workspace.openTextDocument(uri);
-    const selection = line
+    const selection = reference.line
       ? new vscode.Selection(
-          Math.max(0, Number(line) - 1),
-          Math.max(0, Number(column ?? "1") - 1),
-          Math.max(0, Number(line) - 1),
-          Math.max(0, Number(column ?? "1") - 1),
+          Math.max(0, Number(reference.line) - 1),
+          Math.max(0, Number(reference.column ?? "1") - 1),
+          Math.max(0, Number(reference.line) - 1),
+          Math.max(0, Number(reference.column ?? "1") - 1),
         )
       : undefined;
     await vscode.window.showTextDocument(document, {
@@ -617,8 +600,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const beforeUri = this.diffDocuments.uri(sessionID, "before", rel);
     const afterUri = this.diffDocuments.uri(sessionID, "after", rel);
 
-    this.diffDocuments.update(beforeUri, this.extractOriginalContent(diff.patch));
-    this.diffDocuments.update(afterUri, this.extractModifiedContent(diff.patch));
+    const contents = this.buildDiffDocuments(session, diff);
+    this.diffDocuments.update(beforeUri, contents.before);
+    this.diffDocuments.update(afterUri, contents.after);
 
     await vscode.commands.executeCommand("vscode.diff", beforeUri, afterUri, title, {
       preview: false,
@@ -682,6 +666,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     }, 250);
   }
 
+  private clearHtmlRefreshTimer() {
+    if (!this.htmlRefreshTimer) return;
+    clearTimeout(this.htmlRefreshTimer);
+    this.htmlRefreshTimer = undefined;
+  }
+
   /** Restores the SDK status shape from the lighter state mirrored into the webview. */
   private toSdkStatus(status?: SessionStatusState): SessionStatus {
     if (!status || status.type === "idle") return { type: "idle" };
@@ -694,49 +684,219 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     };
   }
 
-  private extractOriginalContent(patch: string) {
-    return this.applyUnifiedDiff(patch, "before");
-  }
+  private parseFileReference(reference: string) {
+    const segments = reference.split(":");
+    let column: string | undefined;
+    let line: string | undefined;
 
-  private extractModifiedContent(patch: string) {
-    return this.applyUnifiedDiff(patch, "after");
-  }
-
-  /** Reconstructs one side of a unified diff for the built-in VS Code diff view. */
-  private applyUnifiedDiff(patch: string, side: "before" | "after") {
-    const lines = patch.split(/\r?\n/);
-    const output: string[] = [];
-
-    for (const line of lines) {
-      if (line.startsWith("--- ") || line.startsWith("+++ ") || line.startsWith("@@")) continue;
-      if (line.startsWith("\\ No newline at end of file")) continue;
-
-      if (line.startsWith("+")) {
-        if (side === "after") output.push(line.slice(1));
-        continue;
-      }
-
-      if (line.startsWith("-")) {
-        if (side === "before") output.push(line.slice(1));
-        continue;
-      }
-
-      if (line.startsWith(" ")) {
-        output.push(line.slice(1));
-        continue;
+    const last = segments[segments.length - 1];
+    if (last && /^\d+$/.test(last)) {
+      column = segments.pop();
+      const maybeLine = segments[segments.length - 1];
+      if (maybeLine && /^\d+$/.test(maybeLine)) {
+        line = segments.pop();
+      } else {
+        line = column;
+        column = undefined;
       }
     }
 
+    return {
+      path: segments.join(":"),
+      line,
+      column,
+    };
+  }
+
+  private resolveSessionPath(
+    session: SessionState,
+    rel: string,
+    options?: { requireExisting?: boolean },
+  ) {
+    const root = fs.realpathSync(session.info.directory);
+    const normalized = rel.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (!normalized) throw new Error("File path is empty");
+    if (normalized.startsWith("../") || path.isAbsolute(normalized)) {
+      throw new Error(`File path is outside the session root: ${rel}`);
+    }
+
+    const resolved = path.resolve(root, normalized);
+    if (!fs.existsSync(resolved)) {
+      if (options?.requireExisting === false) {
+        return { root, target: resolved, exists: false };
+      }
+      throw new Error(`File not found: ${rel}`);
+    }
+
+    const target = fs.realpathSync(resolved);
+    const relative = path.relative(root, target);
+    if (relative.startsWith("..") || path.isAbsolute(relative)) {
+      throw new Error(`File path is outside the session root: ${rel}`);
+    }
+
+    return { root, target, exists: true };
+  }
+
+  private buildDiffDocuments(session: SessionState, diff: SessionState["diffs"][number]) {
+    const parsed = this.parseUnifiedDiff(diff.patch);
+    const resolved = this.resolveSessionPath(session, diff.file, { requireExisting: false });
+    if (resolved.exists) {
+      const disk = fs.readFileSync(resolved.target, "utf8");
+      const beforeFromDisk = this.applyUnifiedDiffToContent(disk, parsed, "forward");
+      if (beforeFromDisk) {
+        return { before: disk, after: beforeFromDisk };
+      }
+
+      const afterFromDisk = this.applyUnifiedDiffToContent(disk, parsed, "reverse");
+      if (afterFromDisk) {
+        return { before: afterFromDisk, after: disk };
+      }
+    }
+
+    return {
+      before: this.reconstructDiffSide(parsed, "before"),
+      after: this.reconstructDiffSide(parsed, "after"),
+    };
+  }
+
+  /** Parses unified diff hunks so file-backed reconstruction can preserve unchanged regions. */
+  private parseUnifiedDiff(patch: string) {
+    const hunks: ParsedHunk[] = [];
+    let current: ParsedHunk | undefined;
+
+    for (const line of patch.split(/\r?\n/)) {
+      const header = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+      if (header) {
+        current = {
+          oldStart: Number(header[1]),
+          oldCount: Number(header[2] ?? "1"),
+          newStart: Number(header[3]),
+          newCount: Number(header[4] ?? "1"),
+          lines: [],
+        };
+        hunks.push(current);
+        continue;
+      }
+
+      if (!current) continue;
+      if (line.startsWith("\\ No newline at end of file")) continue;
+      if (line.startsWith(" ")) {
+        current.lines.push({ type: "context", text: line.slice(1) });
+        continue;
+      }
+      if (line.startsWith("+")) {
+        current.lines.push({ type: "add", text: line.slice(1) });
+        continue;
+      }
+      if (line.startsWith("-")) {
+        current.lines.push({ type: "remove", text: line.slice(1) });
+      }
+    }
+
+    return hunks;
+  }
+
+  /** Applies a unified diff to on-disk content in either direction when the current file still matches. */
+  private applyUnifiedDiffToContent(
+    content: string,
+    hunks: ParsedHunk[],
+    direction: "forward" | "reverse",
+  ) {
+    const source = this.splitLines(content);
+    const output: string[] = [];
+    let cursor = 0;
+
+    for (const hunk of hunks) {
+      const start = Math.max(0, (direction === "forward" ? hunk.oldStart : hunk.newStart) - 1);
+      if (start < cursor || start > source.length) return undefined;
+
+      output.push(...source.slice(cursor, start));
+
+      const expected = hunk.lines
+        .filter((line) =>
+          direction === "forward" ? line.type !== "add" : line.type !== "remove",
+        )
+        .map((line) => line.text);
+
+      const actual = source.slice(start, start + expected.length);
+      if (actual.length !== expected.length) return undefined;
+      if (!actual.every((line, index) => line === expected[index])) return undefined;
+
+      output.push(
+        ...hunk.lines
+          .filter((line) =>
+            direction === "forward" ? line.type !== "remove" : line.type !== "add",
+          )
+          .map((line) => line.text),
+      );
+
+      cursor = start + expected.length;
+    }
+
+    output.push(...source.slice(cursor));
     return output.join("\n");
+  }
+
+  /** Reconstructs one diff side from hunk offsets, padding missing gaps when the workspace file is unavailable. */
+  private reconstructDiffSide(hunks: ParsedHunk[], side: "before" | "after") {
+    const output: string[] = [];
+    let cursor = 0;
+
+    for (const hunk of hunks) {
+      const start = Math.max(0, (side === "before" ? hunk.oldStart : hunk.newStart) - 1);
+      for (let index = cursor; index < start; index += 1) {
+        output.push("");
+      }
+
+      for (const line of hunk.lines) {
+        if (line.type === "context") {
+          output.push(line.text);
+          continue;
+        }
+
+        if (line.type === "remove") {
+          if (side === "before") output.push(line.text);
+          continue;
+        }
+
+        if (side === "after") {
+          output.push(line.text);
+        }
+      }
+
+      cursor = output.length;
+    }
+
+    return output.join("\n");
+  }
+
+  private splitLines(content: string) {
+    const lines = content.split(/\r?\n/);
+    if (lines.length > 0 && lines[lines.length - 1] === "") {
+      lines.pop();
+    }
+    return lines;
   }
 }
 
 type LoadedSession = {
   info: Session;
-  status: SessionStatus;
   messages: Array<{ info: Message; parts: Part[] }>;
   todos: Todo[];
   pendingPermissions: PermissionRequest[];
   pendingQuestions: QuestionRequest[];
   diffs: SnapshotFileDiff[];
+};
+
+type ParsedDiffLine = {
+  type: "context" | "add" | "remove";
+  text: string;
+};
+
+type ParsedHunk = {
+  oldStart: number;
+  oldCount: number;
+  newStart: number;
+  newCount: number;
+  lines: ParsedDiffLine[];
 };

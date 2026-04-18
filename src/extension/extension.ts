@@ -45,6 +45,18 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider("opencode.sidebar", sidebar),
   );
 
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      if (document.uri.scheme === RawMessageDocumentProvider.scheme) {
+        rawMessages.delete(document.uri);
+      }
+
+      if (document.uri.scheme === DiffDocumentProvider.scheme) {
+        diffDocuments.delete(document.uri);
+      }
+    }),
+  );
+
   events.on("event", (event) => {
     proc.log(`Extension received event: ${event.payload.type}`);
     store.handleEvent(event);

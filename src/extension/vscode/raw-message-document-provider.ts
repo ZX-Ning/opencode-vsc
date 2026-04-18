@@ -23,6 +23,10 @@ export class RawMessageDocumentProvider implements vscode.TextDocumentContentPro
     this.changes.fire(uri);
   }
 
+  delete(uri: vscode.Uri) {
+    this.contents.delete(uri.toString());
+  }
+
   provideTextDocumentContent(uri: vscode.Uri) {
     return this.contents.get(uri.toString()) ?? "";
   }

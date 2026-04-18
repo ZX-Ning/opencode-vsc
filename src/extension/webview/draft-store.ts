@@ -14,7 +14,10 @@ import type {
 /** Parses `provider/model` strings from config defaults into structured draft values. */
 function parseModel(value?: string) {
   if (!value) return undefined;
-  const [providerID, modelID] = value.split("/");
+  const separator = value.indexOf("/");
+  if (separator <= 0 || separator === value.length - 1) return undefined;
+  const providerID = value.slice(0, separator);
+  const modelID = value.slice(separator + 1);
   if (!providerID || !modelID) return undefined;
   return { providerID, modelID } satisfies DraftModel;
 }

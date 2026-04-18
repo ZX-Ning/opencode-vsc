@@ -192,16 +192,19 @@ export class ProcessManager extends EventEmitter {
   /** Expands home and validates configured CLI file paths before spawn. */
   private resolveCliPath(input: string) {
     const trimmed = input.trim();
-    const expanded =
-      trimmed === "~"
-        ? os.homedir()
-        : trimmed.startsWith(`~${path.sep}`)
-          ? path.join(os.homedir(), trimmed.slice(2))
-          : trimmed;
-    const looksLikePath = path.isAbsolute(expanded) || expanded.includes(path.sep);
+    if (trimmed === "~") {
+      throw new Error("OpenCode CLI path must point to the CLI binary, not the home directory");
+    }
+
+    const expanded = /^~[\\/]/.test(trimmed) ? path.join(os.homedir(), trimmed.slice(2)) : trimmed;
+    const looksLikePath = path.isAbsolute(expanded) || /[\\/]/.test(expanded);
 
     if (looksLikePath && !fs.existsSync(expanded)) {
       throw new Error(`OpenCode CLI not found at configured path: ${expanded}`);
+    }
+
+    if (looksLikePath && !fs.statSync(expanded).isFile()) {
+      throw new Error(`OpenCode CLI path is not a file: ${expanded}`);
     }
 
     return expanded;

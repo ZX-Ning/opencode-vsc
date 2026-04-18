@@ -72,13 +72,19 @@ function isArchived(info: Session) {
   return typeof info.time.archived === "number" && Number.isFinite(info.time.archived);
 }
 
+/** Normalizes SDK timestamps before they reach sorting code in the webview snapshot. */
+function normalizeTimestamp(value: unknown, fallback = 0) {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
 /** Reduces the full SDK session object to the summary shown in the sidebar. */
 function toSessionSummary(info: Session): SessionSummary {
+  const createdAt = normalizeTimestamp(info.time.created);
   return {
     id: info.id,
     directory: info.directory,
     title: info.title,
-    updatedAt: info.time.updated,
+    updatedAt: normalizeTimestamp(info.time.updated, createdAt),
   };
 }
 

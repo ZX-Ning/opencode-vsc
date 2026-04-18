@@ -24,14 +24,18 @@ export function getWebviewHtml(
     vscode.Uri.joinPath(extensionUri, "dist", "webview", "main.css"),
   );
   const nonce = getNonce();
-  const payload = JSON.stringify(state).replace(/</g, "\u003c");
+  const payload = JSON.stringify(state)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}'; img-src 'none';">
     <link href="${styleUri}" rel="stylesheet">
     <title>OpenCode</title>
 </head>
