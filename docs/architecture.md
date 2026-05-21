@@ -191,8 +191,8 @@ Responsibilities:
 
 ### Open file
 
-1. Webview posts `file.open` with session ID and relative path.
-2. Host resolves the path against the session's workspace root.
+1. Webview posts `file.open` with session ID and a file path.
+2. Host resolves relative paths against the session's workspace root and accepts absolute paths only when they point inside that root.
 3. Host validates the resolved path does not escape the workspace root (path traversal protection).
 4. Host opens the file in the VS Code editor, optionally positioning to a line:column if encoded in the path.
 

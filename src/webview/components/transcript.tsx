@@ -6,7 +6,7 @@ import { marked } from "marked";
 import { For, Show, type Component } from "solid-js";
 import type { ContextChip, TranscriptMessage, TranscriptPartState } from "../../shared/models";
 
-const FILE_TOKEN_PATTERN = /(?:\.{1,2}[\\/])?[A-Za-z0-9_./\\-]+(?::\d+(?::\d+)?)?/g;
+const FILE_TOKEN_PATTERN = /(?:[A-Za-z]:[\\/]|\/|\.{1,2}[\\/])?[A-Za-z0-9_./\\-]+(?::\d+(?::\d+)?)?/g;
 const STANDALONE_FILE_NAMES = new Set([
   "brewfile",
   "dockerfile",
@@ -20,43 +20,6 @@ const STANDALONE_FILE_NAMES = new Set([
   "readme",
   "vagrantfile",
 ]);
-const KNOWN_FILE_EXTENSIONS = new Set([
-  "c",
-  "cc",
-  "cpp",
-  "cs",
-  "css",
-  "go",
-  "h",
-  "hpp",
-  "html",
-  "java",
-  "js",
-  "json",
-  "jsx",
-  "kt",
-  "lock",
-  "lua",
-  "md",
-  "mjs",
-  "php",
-  "py",
-  "rb",
-  "rs",
-  "scss",
-  "sh",
-  "sql",
-  "svg",
-  "toml",
-  "ts",
-  "tsx",
-  "txt",
-  "vue",
-  "xml",
-  "yaml",
-  "yml",
-]);
-
 type Props = {
   messages: TranscriptMessage[];
   onOpenFile: (path: string) => void;
@@ -261,7 +224,7 @@ function stripTrailingPunctuation(token: string) {
 }
 
 /** Uses conservative heuristics so normal prose is not over-linked as file paths. */
-function isLikelyFileName(name: string, strict: boolean) {
+function isLikelyFileName(name: string) {
   const lower = name.toLowerCase();
   if (STANDALONE_FILE_NAMES.has(lower)) return true;
   if (name.startsWith(".") && /[a-z]/i.test(name)) return true;
@@ -271,11 +234,10 @@ function isLikelyFileName(name: string, strict: boolean) {
 
   const ext = name.slice(dot + 1).toLowerCase();
   if (!/^[a-z0-9]+$/i.test(ext) || !/[a-z]/i.test(ext) || ext.length > 10) return false;
-  if (!strict) return true;
-  return KNOWN_FILE_EXTENSIONS.has(ext);
+  return true;
 }
 
-/** Normalizes transcript tokens into relative session file references the host can safely open. */
+/** Normalizes transcript tokens into session file references the host can safely open. */
 function normalizeFileReference(token: string) {
   if (!token || token.includes("://")) return undefined;
 
@@ -284,7 +246,7 @@ function normalizeFileReference(token: string) {
   const line = match?.[2];
   const column = match?.[3];
   const path = rawPath.replace(/\\/g, "/");
-  if (!path || path.startsWith("/") || /^[a-z]:\//i.test(path)) return undefined;
+  if (!path) return undefined;
 
   const normalized = path.replace(/^\.\//, "");
   if (!normalized || normalized.startsWith("../")) return undefined;
@@ -293,8 +255,7 @@ function normalizeFileReference(token: string) {
   const name = parts[parts.length - 1];
   if (!name) return undefined;
 
-  const hasSeparator = parts.length > 1;
-  if (!isLikelyFileName(name, !hasSeparator)) return undefined;
+  if (!isLikelyFileName(name)) return undefined;
 
   if (line && column) return `${normalized}:${line}:${column}`;
   if (line) return `${normalized}:${line}`;

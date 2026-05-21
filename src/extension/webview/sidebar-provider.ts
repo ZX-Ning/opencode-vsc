@@ -716,11 +716,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     const root = fs.realpathSync(session.info.directory);
     const normalized = rel.replace(/\\/g, "/").replace(/^\.\//, "");
     if (!normalized) throw new Error("File path is empty");
-    if (normalized.startsWith("../") || path.isAbsolute(normalized)) {
+    const absolute = path.isAbsolute(normalized);
+    if (!absolute && normalized.startsWith("../")) {
       throw new Error(`File path is outside the session root: ${rel}`);
     }
 
-    const resolved = path.resolve(root, normalized);
+    const resolved = absolute ? path.resolve(normalized) : path.resolve(root, normalized);
+    const unresolvedRelative = path.relative(root, resolved);
+    if (unresolvedRelative.startsWith("..") || path.isAbsolute(unresolvedRelative)) {
+      throw new Error(`File path is outside the session root: ${rel}`);
+    }
+
     if (!fs.existsSync(resolved)) {
       if (options?.requireExisting === false) {
         return { root, target: resolved, exists: false };

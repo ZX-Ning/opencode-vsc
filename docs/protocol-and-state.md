@@ -175,7 +175,7 @@ There are exactly twenty webview message types:
 | `question.answer` | `QuestionAnswerPayload` | answer a pending question |
 | `context.attachActiveFile` | (none) | attach the currently active editor file |
 | `context.attachSelection` | (none) | attach the current editor selection |
-| `file.open` | `{ sessionID, path }` | open a file in the editor |
+| `file.open` | `{ sessionID, path }` | open a session-root-relative file, or an absolute file path that resolves inside the session root, in the editor |
 | `diff.open` | `{ sessionID, path }` | open a file diff in VS Code's diff editor |
 
 ### `context.sync`
