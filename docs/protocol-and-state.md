@@ -54,7 +54,7 @@ DTOs solve this by:
 
 - `TextPartState` — `type: "text"`, carries `text`, optional `synthetic` and `ignored` flags
 - `ReasoningPartState` — `type: "reasoning"`, carries `text` (shown in collapsible thinking blocks)
-- `ToolPartState` — `type: "tool"`, carries `tool` name, `status`, optional `title` and `questionReview`
+- `ToolPartState` — `type: "tool"`, carries `tool` name, `status`, optional `title`, `input`, `output`, and `questionReview`; bash output is normalized into text plus exit/truncation metadata
 - `SubtaskPartState` — `type: "subtask"`, carries `description`
 - `AgentPartState` — `type: "agent"`, carries `name`
 - `RetryPartState` — `type: "retry"`, carries error `message`

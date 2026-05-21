@@ -6,7 +6,8 @@ import { marked } from "marked";
 import { For, Show, type Component } from "solid-js";
 import type { ContextChip, TranscriptMessage, TranscriptPartState } from "../../shared/models";
 
-const FILE_TOKEN_PATTERN = /(?:[A-Za-z]:[\\/]|\/|\.{1,2}[\\/])?[A-Za-z0-9_./\\-]+(?::\d+(?::\d+)?)?/g;
+const FILE_TOKEN_PATTERN =
+  /(?:[A-Za-z]:[\\/]|\/|\.{1,2}[\\/])?[A-Za-z0-9_./\\-]+(?::\d+(?::\d+)?)?/g;
 const STANDALONE_FILE_NAMES = new Set([
   "brewfile",
   "dockerfile",
@@ -30,8 +31,9 @@ type Props = {
 
 type ContentSegment = {
   id: string;
-  type: "markdown" | "reasoning";
+  type: "markdown" | "reasoning" | "tool";
   content: string;
+  tool?: Extract<TranscriptPartState, { type: "tool" }>;
 };
 
 type AttachmentLink = {
@@ -59,6 +61,7 @@ function partText(part: TranscriptPartState, user: boolean) {
   }
 
   if (part.type === "tool") {
+    if (part.tool === "bash" && (part.input?.command || part.output?.text)) return undefined;
     if (part.tool === "question" && part.questionReview?.length) {
       return `**Questions**\n\n${part.questionReview
         .map((item) => `${item.question}\n${item.answers.join(", ") || "(no answer)"}`)
@@ -105,6 +108,21 @@ function contentSegments(message: TranscriptMessage) {
       continue;
     }
 
+    if (
+      part.type === "tool" &&
+      part.tool === "bash" &&
+      (part.input?.command || part.output?.text)
+    ) {
+      flush();
+      segments.push({
+        id: part.id,
+        type: "tool",
+        content: toolCopyText(part),
+        tool: part,
+      });
+      continue;
+    }
+
     const content = partText(part, user);
     if (!content?.trim()) continue;
 
@@ -120,12 +138,80 @@ function contentSegments(message: TranscriptMessage) {
 function copyMarkdown(segments: ContentSegment[]) {
   return segments
     .map((segment) =>
-      segment.type === "reasoning" ? `**Thinking**\n\n${segment.content}` : segment.content,
+      segment.type === "reasoning"
+        ? `**Thinking**\n\n${segment.content}`
+        : segment.type === "tool"
+          ? segment.content
+          : segment.content,
     )
     .filter((segment) => segment.trim())
     .join("\n\n")
     .trim();
 }
+
+function toolCopyText(part: Extract<TranscriptPartState, { type: "tool" }>) {
+  const lines = [`Tool: ${part.tool} (${part.status})`];
+  if (part.title) lines.push(part.title);
+  if (part.input?.command) lines.push("", `$ ${part.input.command}`);
+  if (part.output?.text) lines.push("", part.output.text);
+  if (part.output?.exitCode !== undefined) lines.push("", `Exit code: ${part.output.exitCode}`);
+  return lines.join("\n").trim();
+}
+
+const ToolCallBlock: Component<{
+  part: Extract<TranscriptPartState, { type: "tool" }>;
+  onCopyMessage: (text: string) => void;
+}> = (props) => {
+  const open = () =>
+    props.part.status !== "completed" || (props.part.output?.text.length ?? 0) <= 2000;
+  const description = () => props.part.title ?? props.part.input?.description;
+  const copyText = () => toolCopyText(props.part);
+
+  return (
+    <details class="tool-call" open={open()}>
+      <summary class="tool-call-summary">
+        <span class="tool-call-name">{props.part.tool}</span>
+        <span class="tool-call-status">{props.part.status}</span>
+        <Show when={description()}>
+          {(value) => <span class="tool-call-description">{value()}</span>}
+        </Show>
+        <button
+          class="bubble-action tool-call-copy"
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            props.onCopyMessage(copyText());
+          }}
+        >
+          Copy
+        </button>
+      </summary>
+      <div class="tool-call-body">
+        <Show when={props.part.output?.exitCode !== undefined}>
+          <div class="tool-call-exit">Exit code: {props.part.output?.exitCode}</div>
+        </Show>
+        <Show when={props.part.input?.command}>
+          {(command) => (
+            <pre class="tool-call-command">
+              <code>$ {command()}</code>
+            </pre>
+          )}
+        </Show>
+        <Show when={props.part.output?.text}>
+          {(output) => (
+            <pre class="tool-call-output">
+              <code>{output()}</code>
+            </pre>
+          )}
+        </Show>
+        <Show when={props.part.output?.truncated}>
+          <div class="tool-call-note">Output truncated</div>
+        </Show>
+      </div>
+    </details>
+  );
+};
 
 function normalizeMention(value: string) {
   return value.replace(/\\/g, "/").replace(/^\.\//, "");
@@ -457,8 +543,8 @@ export const Transcript: Component<Props> = (props) => {
                   <For each={segments}>
                     {(segment) =>
                       segment.type === "reasoning" ? (
-                        <section class="bubble-thinking">
-                          <div class="bubble-thinking-label">Thinking</div>
+                        <details class="bubble-thinking" open={running}>
+                          <summary class="bubble-thinking-label">Thinking</summary>
                           <div
                             class="bubble-text bubble-thinking-text markdown-body"
                             innerHTML={renderMarkdown(segment.content)}
@@ -466,7 +552,9 @@ export const Transcript: Component<Props> = (props) => {
                               handleMarkdownClick(event, props.onOpenFile, props.onCopyMessage)
                             }
                           />
-                        </section>
+                        </details>
+                      ) : segment.type === "tool" && segment.tool ? (
+                        <ToolCallBlock part={segment.tool} onCopyMessage={props.onCopyMessage} />
                       ) : (
                         <div
                           class="bubble-text markdown-body"

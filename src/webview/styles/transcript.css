@@ -77,9 +77,6 @@
 }
 
 .bubble-thinking {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   padding: 8px 10px;
   border-radius: 6px;
   border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
@@ -87,6 +84,7 @@
 }
 
 .bubble-thinking-label {
+  cursor: pointer;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -95,8 +93,86 @@
 }
 
 .bubble-thinking-text {
+  margin-top: 6px;
   font-size: 12px;
   opacity: 0.88;
+}
+
+.tool-call {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  overflow: hidden;
+}
+
+.tool-call-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.tool-call-name {
+  font-weight: 600;
+  font-family: var(--vscode-editor-font-family, var(--font));
+}
+
+.tool-call-status,
+.tool-call-description,
+.tool-call-exit {
+  opacity: 0.72;
+}
+
+.tool-call-description {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tool-call-copy {
+  margin-left: auto;
+}
+
+.tool-call-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 0 9px 9px;
+}
+
+.tool-call-exit {
+  font-size: 12px;
+}
+
+.tool-call-command,
+.tool-call-output {
+  margin: 0;
+  padding: 8px;
+  overflow-x: auto;
+  border-radius: 5px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  background: var(--vscode-editor-background);
+  color: var(--vscode-editor-foreground);
+  font-family: var(--vscode-editor-font-family, var(--font));
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tool-call-command code,
+.tool-call-output code {
+  display: block;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  white-space: pre;
+}
+
+.tool-call-note {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .markdown-body > :first-child {

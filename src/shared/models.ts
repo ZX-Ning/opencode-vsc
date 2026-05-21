@@ -154,6 +154,15 @@ export type ToolPartState = {
   tool: string;
   status: string;
   title?: string;
+  input?: {
+    command?: string;
+    description?: string;
+  };
+  output?: {
+    text: string;
+    exitCode?: number;
+    truncated?: boolean;
+  };
   questionReview?: Array<{
     question: string;
     answers: QuestionAnswer;

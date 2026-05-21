@@ -141,7 +141,7 @@ function partSignature(part?: TranscriptPartState) {
     case "reasoning":
       return `reasoning:${part.id}:${part.text.length}`;
     case "tool":
-      return `tool:${part.id}:${part.tool}:${part.status}:${part.title ?? ""}:${part.questionReview?.length ?? 0}`;
+      return `tool:${part.id}:${part.tool}:${part.status}:${part.title ?? ""}:${part.input?.command?.length ?? 0}:${part.output?.text.length ?? 0}:${part.output?.exitCode ?? ""}:${part.output?.truncated ? 1 : 0}:${part.questionReview?.length ?? 0}`;
     case "subtask":
       return `subtask:${part.id}:${part.description}`;
     case "agent":

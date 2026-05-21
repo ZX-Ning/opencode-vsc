@@ -33,6 +33,7 @@ import type {
 } from "../../shared/models";
 
 const idle: SessionStatus = { type: "idle" };
+const MAX_TOOL_OUTPUT_CHARS = 20000;
 
 type Mutable = {
   info: Session;
@@ -75,6 +76,36 @@ function isArchived(info: Session) {
 /** Normalizes SDK timestamps before they reach sorting code in the webview snapshot. */
 function normalizeTimestamp(value: unknown, fallback = 0) {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+}
+
+function stringField(source: Record<string, unknown> | undefined, key: string) {
+  const value = source?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberField(source: Record<string, unknown> | undefined, key: string) {
+  const value = source?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function booleanField(source: Record<string, unknown> | undefined, key: string) {
+  const value = source?.[key];
+  return typeof value === "boolean" ? value : undefined;
+}
+
+function trimToolOutput(text: string) {
+  if (text.length <= MAX_TOOL_OUTPUT_CHARS) {
+    return { text, truncated: false };
+  }
+
+  return {
+    text: `${text.slice(0, MAX_TOOL_OUTPUT_CHARS)}\n\n[Output truncated]`,
+    truncated: true,
+  };
 }
 
 /** Reduces the full SDK session object to the summary shown in the sidebar. */
@@ -343,19 +374,35 @@ function toQuestionReview(part: Extract<Part, { type: "tool" }>) {
   return items;
 }
 
+function toToolInput(state: Record<string, unknown> | undefined) {
+  const input = asRecord(state?.input);
+  const command = stringField(input, "command");
+  const description = stringField(input, "description");
+
+  if (!command && !description) return undefined;
+  return { command, description };
+}
+
+function toToolOutput(state: Record<string, unknown> | undefined) {
+  const metadata = asRecord(state?.metadata);
+  const rawOutput = stringField(state, "output") ?? stringField(metadata, "output");
+  if (rawOutput === undefined) return undefined;
+
+  const trimmed = trimToolOutput(rawOutput);
+  const metadataTruncated = booleanField(metadata, "truncated");
+  return {
+    text: trimmed.text,
+    exitCode: numberField(metadata, "exit"),
+    truncated: trimmed.truncated || metadataTruncated || undefined,
+  };
+}
+
 /** Flattens tool parts into a stable render shape and preserves question answers for review. */
 function toToolState(part: Extract<Part, { type: "tool" }>): TranscriptPartState {
-  const status =
-    typeof part.state === "object" && part.state && "status" in part.state
-      ? String(part.state.status)
-      : "unknown";
+  const state = asRecord(part.state);
+  const status = state && "status" in state ? String(state.status) : "unknown";
   const title =
-    typeof part.state === "object" &&
-    part.state &&
-    "title" in part.state &&
-    typeof part.state.title === "string"
-      ? part.state.title
-      : undefined;
+    state && "title" in state && typeof state.title === "string" ? state.title : undefined;
 
   return {
     id: part.id,
@@ -364,6 +411,8 @@ function toToolState(part: Extract<Part, { type: "tool" }>): TranscriptPartState
     tool: part.tool,
     status,
     title,
+    input: part.tool === "bash" ? toToolInput(state) : undefined,
+    output: part.tool === "bash" ? toToolOutput(state) : undefined,
     questionReview: toQuestionReview(part),
   };
 }
