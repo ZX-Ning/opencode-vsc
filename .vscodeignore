@@ -1,0 +1,32 @@
+# Source and build inputs
+src/**
+docs/**
+reference/**
+*.ts
+*.tsx
+*.mts
+*.cts
+*.mjs
+tsconfig.json
+vite.*
+esbuild.*
+
+# Dependency installs are bundled into dist by the build.
+node_modules/**
+
+# Local development and generated artifacts
+.git/**
+.gitignore
+.github/**
+.vscode/**
+.opencode/**
+screenshots/**
+*.vsix
+*.log
+
+# Package manager and tooling metadata
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+AGENTS.md
