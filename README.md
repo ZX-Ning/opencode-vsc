@@ -1,4 +1,4 @@
-# Opencode VSC
+# Opencode VS Code
 
 An opencode VS Code extension that works.
 
